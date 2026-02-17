@@ -430,19 +430,19 @@ export default function EvaluationModule() {
   return (
     <div className="space-y-8">
       {/* En-tête avec actions */}
-      <div className="bg-gradient-to-br from-white to-slate-50 border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="p-6 border shadow-sm bg-gradient-to-br from-white to-slate-50 border-slate-200/70 rounded-2xl">
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
           <div className="flex-1">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl shadow-lg">
-                <Award className="w-7 h-7 text-white" />
+            <div className="flex items-center mb-2 space-x-3">
+              <div className="p-3 shadow-lg bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl">
+                <Award className="text-white w-7 h-7" />
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-slate-900">Module d'Évaluation</h1>
-                <p className="text-slate-600 mt-1">
+                <p className="mt-1 text-slate-600">
                   Gestion des évaluations avec workflow de validation multi-niveaux
                   {contractNotifications.length > 0 && (
-                    <span className="ml-2 px-2 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
+                    <span className="px-2 py-1 ml-2 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
                       {contractNotifications.length} contrat(s) à échéance J-30
                     </span>
                   )}
@@ -481,12 +481,12 @@ export default function EvaluationModule() {
         </div>
 
         {/* Période de temps */}
-        <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-200">
+        <div className="flex items-center justify-between pt-6 mt-6 border-t border-slate-200">
           <div className="flex items-center space-x-2">
             <Calendar className="w-5 h-5 text-slate-400" />
             <span className="text-sm font-medium text-slate-700">Période :</span>
           </div>
-          <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg">
+          <div className="flex p-1 space-x-1 rounded-lg bg-slate-100">
             {['7days', '30days', '90days', 'year'].map((range) => (
               <button
                 key={range}
@@ -508,7 +508,7 @@ export default function EvaluationModule() {
 
       {/* Filtres avancés */}
       {showFilters && (
-        <div className="bg-gradient-to-br from-white to-blue-50 border border-blue-200/50 rounded-xl p-5 shadow-sm">
+        <div className="p-5 border shadow-sm bg-gradient-to-br from-white to-blue-50 border-blue-200/50 rounded-xl">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-blue-900">Filtres avancés</h3>
             <button
@@ -518,20 +518,20 @@ export default function EvaluationModule() {
                 department: 'all',
                 urgency: 'all',
               })}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
+              className="flex items-center space-x-1 text-sm font-medium text-blue-600 hover:text-blue-800"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Réinitialiser</span>
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Statut</label>
+              <label className="block mb-2 text-sm font-medium text-slate-700">Statut</label>
               <select
                 value={filters.status}
                 onChange={(e) => setFilters({...filters, status: e.target.value})}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">Tous les statuts</option>
                 <option value="draft">Brouillon</option>
@@ -546,11 +546,11 @@ export default function EvaluationModule() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Type d'évaluation</label>
+              <label className="block mb-2 text-sm font-medium text-slate-700">Type d'évaluation</label>
               <select
                 value={filters.period}
                 onChange={(e) => setFilters({...filters, period: e.target.value})}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">Tous les types</option>
                 <option value="contract_end">Fin de contrat</option>
@@ -563,11 +563,11 @@ export default function EvaluationModule() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Département</label>
+              <label className="block mb-2 text-sm font-medium text-slate-700">Département</label>
               <select
                 value={filters.department}
                 onChange={(e) => setFilters({...filters, department: e.target.value})}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">Tous départements</option>
                 <option value="it">IT</option>
@@ -579,11 +579,11 @@ export default function EvaluationModule() {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Urgence</label>
+              <label className="block mb-2 text-sm font-medium text-slate-700">Urgence</label>
               <select
                 value={filters.urgency}
                 onChange={(e) => setFilters({...filters, urgency: e.target.value})}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">Tous</option>
                 <option value="critical">Critique (≤ 3j)</option>
@@ -597,8 +597,8 @@ export default function EvaluationModule() {
       )}
 
       {/* Dashboard de statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8 gap-4">
-        <div className="bg-gradient-to-br from-white to-slate-50 rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8">
+        <div className="p-5 transition-shadow border shadow-sm bg-gradient-to-br from-white to-slate-50 rounded-xl border-slate-200 hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg">
               <Users className="w-6 h-6 text-blue-600" />
@@ -608,10 +608,10 @@ export default function EvaluationModule() {
             </span>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.total}</p>
-          <p className="text-sm text-slate-600 mt-1">Évaluations</p>
+          <p className="mt-1 text-sm text-slate-600">Évaluations</p>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-amber-50 rounded-xl p-5 border border-amber-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="p-5 transition-shadow border shadow-sm bg-gradient-to-br from-white to-amber-50 rounded-xl border-amber-200 hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg">
               <Clock className="w-6 h-6 text-amber-600" />
@@ -621,10 +621,10 @@ export default function EvaluationModule() {
             </span>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.inProgress}</p>
-          <p className="text-sm text-slate-600 mt-1">À compléter</p>
+          <p className="mt-1 text-sm text-slate-600">À compléter</p>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-rose-50 rounded-xl p-5 border border-rose-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="p-5 transition-shadow border shadow-sm bg-gradient-to-br from-white to-rose-50 rounded-xl border-rose-200 hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-rose-100 to-pink-100 rounded-lg">
               <AlertCircle className="w-6 h-6 text-rose-600" />
@@ -634,10 +634,10 @@ export default function EvaluationModule() {
             </span>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.overdue}</p>
-          <p className="text-sm text-slate-600 mt-1">Dépassées</p>
+          <p className="mt-1 text-sm text-slate-600">Dépassées</p>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-emerald-50 rounded-xl p-5 border border-emerald-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="p-5 transition-shadow border shadow-sm bg-gradient-to-br from-white to-emerald-50 rounded-xl border-emerald-200 hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg">
               <CheckCircle className="w-6 h-6 text-emerald-600" />
@@ -647,10 +647,10 @@ export default function EvaluationModule() {
             </span>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.completed}</p>
-          <p className="text-sm text-slate-600 mt-1">Finalisées</p>
+          <p className="mt-1 text-sm text-slate-600">Finalisées</p>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-slate-50 rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="p-5 transition-shadow border shadow-sm bg-gradient-to-br from-white to-slate-50 rounded-xl border-slate-200 hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-slate-100 to-gray-100 rounded-lg">
               <Target className="w-6 h-6 text-slate-600" />
@@ -660,10 +660,10 @@ export default function EvaluationModule() {
             </span>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.pendingN2Validation}</p>
-          <p className="text-sm text-slate-600 mt-1">À valider N+2</p>
+          <p className="mt-1 text-sm text-slate-600">À valider N+2</p>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl p-5 border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="p-5 transition-shadow border border-blue-200 shadow-sm bg-gradient-to-br from-white to-blue-50 rounded-xl hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg">
               <BarChart3 className="w-6 h-6 text-blue-600" />
@@ -673,10 +673,10 @@ export default function EvaluationModule() {
             </span>
           </div>
           <p className="text-3xl font-bold text-slate-900">{stats.closureRate}%</p>
-          <p className="text-sm text-slate-600 mt-1">Taux de clôture</p>
+          <p className="mt-1 text-sm text-slate-600">Taux de clôture</p>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl p-5 border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="p-5 transition-shadow border border-purple-200 shadow-sm bg-gradient-to-br from-white to-purple-50 rounded-xl hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-purple-100 to-violet-100 rounded-lg">
               <Mail className="w-6 h-6 text-purple-600" />
@@ -686,10 +686,10 @@ export default function EvaluationModule() {
             </span>
           </div>
           <p className="text-3xl font-bold text-slate-900">{contractNotifications.length}</p>
-          <p className="text-sm text-slate-600 mt-1">Contrats J-30</p>
+          <p className="mt-1 text-sm text-slate-600">Contrats J-30</p>
         </div>
 
-        <div className="bg-gradient-to-br from-white to-green-50 rounded-xl p-5 border border-green-200 shadow-sm hover:shadow-md transition-shadow">
+        <div className="p-5 transition-shadow border border-green-200 shadow-sm bg-gradient-to-br from-white to-green-50 rounded-xl hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg">
               <Bell className="w-6 h-6 text-green-600" />
@@ -699,14 +699,14 @@ export default function EvaluationModule() {
             </span>
           </div>
           <p className="text-3xl font-bold text-slate-900">48h</p>
-          <p className="text-sm text-slate-600 mt-1">Délai traitement</p>
+          <p className="mt-1 text-sm text-slate-600">Délai traitement</p>
         </div>
       </div>
 
       {/* Widgets supplémentaires */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Widget état de sortie */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <div className="p-6 bg-white border shadow-sm rounded-xl border-slate-200">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">États de sortie</h3>
@@ -721,21 +721,21 @@ export default function EvaluationModule() {
                 <span className="text-sm font-medium text-slate-700">Taux de clôture</span>
                 <span className="text-sm font-bold text-blue-600">{stats.closureRate}%</span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-2">
+              <div className="w-full h-2 rounded-full bg-slate-200">
                 <div 
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-500"
+                  className="h-2 transition-all duration-500 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
                   style={{ width: `${stats.closureRate}%` }}
                 />
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs text-slate-500 mb-1">Évaluations en cours</p>
+              <div className="p-3 rounded-lg bg-slate-50">
+                <p className="mb-1 text-xs text-slate-500">Évaluations en cours</p>
                 <p className="text-lg font-bold text-slate-900">{stats.inProgress}</p>
               </div>
-              <div className="bg-emerald-50 rounded-lg p-3">
-                <p className="text-xs text-emerald-500 mb-1">Évaluations terminées</p>
+              <div className="p-3 rounded-lg bg-emerald-50">
+                <p className="mb-1 text-xs text-emerald-500">Évaluations terminées</p>
                 <p className="text-lg font-bold text-emerald-900">{stats.completed}</p>
               </div>
             </div>
@@ -743,7 +743,7 @@ export default function EvaluationModule() {
         </div>
 
         {/* Widget rappels automatiques */}
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-6 shadow-sm">
+        <div className="p-6 border shadow-sm bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border-amber-200">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-semibold text-amber-900">Rappels automatiques</h3>
@@ -753,7 +753,7 @@ export default function EvaluationModule() {
           </div>
           
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-white/50">
               <div className="flex items-center space-x-3">
                 <Mail className="w-5 h-5 text-amber-600" />
                 <div>
@@ -761,12 +761,12 @@ export default function EvaluationModule() {
                   <p className="text-xs text-amber-700">Notification automatique au manager</p>
                 </div>
               </div>
-              <span className="px-2 py-1 bg-amber-100 text-amber-800 text-sm font-medium rounded-full">
+              <span className="px-2 py-1 text-sm font-medium rounded-full bg-amber-100 text-amber-800">
                 {contractNotifications.length}
               </span>
             </div>
             
-            <div className="flex items-center justify-between p-3 bg-white/50 rounded-lg">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-white/50">
               <div className="flex items-center space-x-3">
                 <Clock className="w-5 h-5 text-rose-600" />
                 <div>
@@ -774,7 +774,7 @@ export default function EvaluationModule() {
                   <p className="text-xs text-amber-700">Rappel automatique si dépassé</p>
                 </div>
               </div>
-              <span className="px-2 py-1 bg-rose-100 text-rose-800 text-sm font-medium rounded-full">
+              <span className="px-2 py-1 text-sm font-medium rounded-full bg-rose-100 text-rose-800">
                 Actif
               </span>
             </div>
@@ -783,7 +783,7 @@ export default function EvaluationModule() {
       </div>
 
       {/* Liste principale des évaluations */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="overflow-hidden bg-white border shadow-sm rounded-2xl border-slate-200">
         <div className="border-b border-slate-200">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
@@ -800,7 +800,7 @@ export default function EvaluationModule() {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={checkProcessingDeadlines}
-                  className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="p-2 transition-colors rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   title="Vérifier les rappels"
                 >
                   <Bell className="w-5 h-5" />
@@ -808,7 +808,7 @@ export default function EvaluationModule() {
                 <button
                   onClick={fetchStats}
                   disabled={loading}
-                  className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="p-2 transition-colors rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   title="Actualiser"
                 >
                   <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -822,12 +822,12 @@ export default function EvaluationModule() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-blue-200 rounded-full border-t-blue-600 animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Award className="w-8 h-8 text-blue-600 animate-pulse" />
                 </div>
               </div>
-              <p className="mt-4 text-slate-600 font-medium">Chargement des évaluations...</p>
+              <p className="mt-4 font-medium text-slate-600">Chargement des évaluations...</p>
             </div>
           ) : (
             <EvaluationList 

@@ -291,24 +291,24 @@ export default function EvaluationList({ onUpdate, filters = {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <div className="relative">
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <div className="w-16 h-16 border-4 border-blue-200 rounded-full border-t-blue-600 animate-spin"></div>
           <div className="absolute inset-0 flex items-center justify-center">
             <Eye className="w-8 h-8 text-blue-600 animate-pulse" />
           </div>
         </div>
-        <p className="mt-4 text-slate-600 font-medium">Chargement des évaluations...</p>
+        <p className="mt-4 font-medium text-slate-600">Chargement des évaluations...</p>
       </div>
     );
   }
 
   if (evaluations.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="mx-auto w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+      <div className="py-12 text-center">
+        <div className="flex items-center justify-center w-24 h-24 mx-auto mb-4 rounded-full bg-slate-100">
           <Eye className="w-12 h-12 text-slate-400" />
         </div>
-        <h3 className="text-lg font-semibold text-slate-900 mb-2">Aucune évaluation trouvée</h3>
-        <p className="text-slate-600 max-w-md mx-auto">
+        <h3 className="mb-2 text-lg font-semibold text-slate-900">Aucune évaluation trouvée</h3>
+        <p className="max-w-md mx-auto text-slate-600">
           {filters.status !== 'all' || filters.department !== 'all' 
             ? 'Aucune évaluation ne correspond aux filtres sélectionnés.' 
             : 'Commencez par créer votre première évaluation.'}
@@ -330,17 +330,17 @@ export default function EvaluationList({ onUpdate, filters = {
           return (
             <div
               key={evaluation.id}
-              className="border border-slate-200 rounded-xl p-5 hover:shadow-md transition-all bg-white"
+              className="p-5 transition-all bg-white border border-slate-200 rounded-xl hover:shadow-md"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg flex items-center justify-center">
+                  <div className="flex items-center mb-3 space-x-3">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-cyan-100">
                       <User className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-slate-900 text-lg">{evaluation.employee?.full_name}</h3>
-                      <div className="flex items-center space-x-3 mt-1">
+                      <h3 className="text-lg font-bold text-slate-900">{evaluation.employee?.full_name}</h3>
+                      <div className="flex items-center mt-1 space-x-3">
                         <span className="text-sm text-slate-600">
                           {evaluation.job_title || evaluation.employee?.position}
                         </span>
@@ -354,42 +354,42 @@ export default function EvaluationList({ onUpdate, filters = {
                   
                   <div className="flex flex-wrap gap-2 mb-3">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusBadge.className}`}>
-                      <StatusIcon className="w-3 h-3 inline mr-1" />
+                      <StatusIcon className="inline w-3 h-3 mr-1" />
                       {statusBadge.text}
                     </span>
                     
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${urgency.color} bg-opacity-10`}>
-                      <Clock className="w-3 h-3 inline mr-1" />
+                      <Clock className="inline w-3 h-3 mr-1" />
                       {urgency.label}
                     </span>
                     
-                    <span className="px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
+                    <span className="px-3 py-1 text-sm font-medium rounded-full bg-slate-100 text-slate-700">
                       {getLevelName(evaluation.current_validation_level)}
                     </span>
                     
                     {needsReminder && (
-                      <span className="px-3 py-1 rounded-full text-sm font-medium bg-rose-100 text-rose-700">
-                        <Mail className="w-3 h-3 inline mr-1" />
+                      <span className="px-3 py-1 text-sm font-medium rounded-full bg-rose-100 text-rose-700">
+                        <Mail className="inline w-3 h-3 mr-1" />
                         Rappel envoyé
                       </span>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
-                      <p className="text-sm font-medium text-slate-700 mb-1">Manager</p>
+                      <p className="mb-1 text-sm font-medium text-slate-700">Manager</p>
                       <p className="text-sm text-slate-900">{evaluation.manager?.full_name}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-700 mb-1">Motif</p>
+                      <p className="mb-1 text-sm font-medium text-slate-700">Motif</p>
                       <p className="text-sm text-slate-900">{evaluation.evaluation_reason}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-700 mb-1">Type</p>
+                      <p className="mb-1 text-sm font-medium text-slate-700">Type</p>
                       <p className="text-sm text-slate-900">{evaluation.evaluation_type}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-700 mb-1">Date échéance</p>
+                      <p className="mb-1 text-sm font-medium text-slate-700">Date échéance</p>
                       <p className="text-sm text-slate-900">
                         {new Date(evaluation.contract_end_date || evaluation.due_date).toLocaleDateString('fr-FR')}
                         <span className={`ml-2 text-xs ${urgency.color}`}>
@@ -454,12 +454,12 @@ export default function EvaluationList({ onUpdate, filters = {
 
       {/* Modal de commentaire */}
       {showCommentModal && selectedEvaluation && selectedAction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="w-full max-w-md p-6 bg-white rounded-2xl">
+            <h3 className="mb-2 text-lg font-semibold text-slate-900">
               Ajouter un commentaire
             </h3>
-            <p className="text-sm text-slate-600 mb-4">
+            <p className="mb-4 text-sm text-slate-600">
               Évaluation de {selectedEvaluation.employee?.full_name} • Action: {selectedAction.name}
             </p>
             
@@ -467,7 +467,7 @@ export default function EvaluationList({ onUpdate, filters = {
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               placeholder="Saisissez votre commentaire ici..."
-              className="w-full h-32 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
+              className="w-full h-32 px-3 py-2 mb-4 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={4}
             />
             
@@ -477,14 +477,14 @@ export default function EvaluationList({ onUpdate, filters = {
                   setShowCommentModal(false);
                   setCommentText('');
                 }}
-                className="px-4 py-2 text-slate-700 font-medium hover:bg-slate-100 rounded-lg transition-colors"
+                className="px-4 py-2 font-medium transition-colors rounded-lg text-slate-700 hover:bg-slate-100"
               >
                 Annuler
               </button>
               <button
                 onClick={handleCommentSubmit}
                 disabled={!commentText.trim()}
-                className="px-4 py-2 bg-blue-600 text-white font-medium hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 font-medium text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Envoyer
               </button>

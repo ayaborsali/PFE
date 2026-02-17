@@ -12,6 +12,7 @@ import {
 import RecruitmentModule from './recruitment/RecruitmentModule';
 import EvaluationModule from './evaluation/EvaluationModule';
 import Analytics from './Analytics';
+import Chatbot from "./Chatbot";
 
 type Module = 'recruitment' | 'evaluation' | 'analytics';
 
@@ -110,16 +111,16 @@ export default function Dashboard() {
     <>
       {/* Modal de confirmation de déconnexion */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-2xl max-w-md w-full border border-white/30">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md border shadow-2xl bg-gradient-to-br from-white to-slate-50 rounded-2xl border-white/30">
             <div className="p-6">
-              <div className="flex items-center space-x-4 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
+              <div className="flex items-center mb-6 space-x-4">
+                <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl">
                   <AlertTriangle className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">Confirmer la déconnexion</h3>
-                  <p className="text-slate-600 mt-1">Êtes-vous sûr de vouloir vous déconnecter ?</p>
+                  <p className="mt-1 text-slate-600">Êtes-vous sûr de vouloir vous déconnecter ?</p>
                 </div>
               </div>
 
@@ -151,21 +152,21 @@ export default function Dashboard() {
       {/* Dropdown Notifications */}
       {showNotifications && (
         <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)}>
-          <div className="absolute top-16 right-6 bg-white rounded-2xl shadow-2xl border border-slate-200/50 w-80 overflow-hidden">
+          <div className="absolute overflow-hidden bg-white border shadow-2xl top-16 right-6 rounded-2xl border-slate-200/50 w-80">
             <div className="p-4 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-900">Notifications</h3>
                 <span className="text-sm text-slate-600">{notifications} non lues</span>
               </div>
             </div>
-            <div className="max-h-96 overflow-y-auto">
+            <div className="overflow-y-auto max-h-96">
               {notificationItems.map((item) => (
-                <div key={item.id} className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
+                <div key={item.id} className="p-4 border-b cursor-pointer border-slate-100 hover:bg-slate-50">
                   <div className="flex items-start space-x-3">
                     <div className={`w-2 h-2 mt-2 rounded-full ${item.unread ? 'bg-blue-500' : 'bg-slate-300'}`}></div>
                     <div className="flex-1">
                       <p className="font-medium text-slate-900">{item.title}</p>
-                      <p className="text-sm text-slate-500 mt-1">{item.time}</p>
+                      <p className="mt-1 text-sm text-slate-500">{item.time}</p>
                     </div>
                     {item.unread && (
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -175,7 +176,7 @@ export default function Dashboard() {
               ))}
             </div>
             <div className="p-4 border-t border-slate-200">
-              <button className="w-full text-center text-blue-600 hover:text-blue-700 font-medium">
+              <button className="w-full font-medium text-center text-blue-600 hover:text-blue-700">
                 Voir toutes les notifications
               </button>
             </div>
@@ -183,32 +184,32 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 relative overflow-hidden">
+      <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
         {/* Effets de fond décoratifs */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-gradient-to-tr from-blue-500/5 to-indigo-500/5 rounded-full blur-3xl"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2/3 h-2/3 bg-gradient-to-r from-violet-500/3 to-purple-500/3 rounded-full blur-3xl"></div>
+          <div className="absolute top-0 right-0 w-1/3 rounded-full h-1/3 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-1/2 rounded-full h-1/2 bg-gradient-to-tr from-blue-500/5 to-indigo-500/5 blur-3xl"></div>
+          <div className="absolute w-2/3 -translate-x-1/2 -translate-y-1/2 rounded-full top-1/2 left-1/2 h-2/3 bg-gradient-to-r from-violet-500/3 to-purple-500/3 blur-3xl"></div>
         </div>
 
         <div className="relative z-10">
           {/* Header avec glassmorphism */}
           <header className="sticky top-0 z-40">
-            <div className="px-6 lg:px-8 py-4">
-              <div className="bg-gradient-to-r from-white/95 to-white/90 backdrop-blur-xl border border-white/30 rounded-2xl shadow-lg shadow-slate-200/30">
+            <div className="px-6 py-4 lg:px-8">
+              <div className="border shadow-lg bg-gradient-to-r from-white/95 to-white/90 backdrop-blur-xl border-white/30 rounded-2xl shadow-slate-200/30">
                 <div className="px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="relative">
-                        <div className="w-14 h-14 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
-                          <Building className="w-7 h-7 text-white" />
+                        <div className="flex items-center justify-center shadow-lg w-14 h-14 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl">
+                          <Building className="text-white w-7 h-7" />
                         </div>
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full border-2 border-white flex items-center justify-center">
+                        <div className="absolute flex items-center justify-center w-4 h-4 border-2 border-white rounded-full -top-1 -right-1 bg-gradient-to-br from-blue-500 to-cyan-500">
                           <Zap className="w-2 h-2 text-white" />
                         </div>
                       </div>
                       <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                        <h1 className="text-2xl font-bold text-transparent bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text">
                           Kilani Groupe
                         </h1>
                         <div className="flex items-center space-x-3">
@@ -217,7 +218,7 @@ export default function Dashboard() {
                               <Shield className="w-3 h-3 text-emerald-500" />
                               <span>RH Digitalisée</span>
                             </div>
-                            <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                            <div className="w-1 h-1 rounded-full bg-slate-300"></div>
                             <div className="flex items-center space-x-1">
                               <Clock className="w-3 h-3 text-blue-500" />
                               <span>{formatTime(currentTime)}</span>
@@ -229,7 +230,7 @@ export default function Dashboard() {
 
                     <div className="flex items-center space-x-4">
                       {/* Boutons d'action rapide */}
-                      <div className="hidden md:flex items-center space-x-2">
+                      <div className="items-center hidden space-x-2 md:flex">
                         <button className="p-2.5 rounded-xl hover:bg-slate-100 transition-colors" title="Aide">
                           <HelpCircle className="w-5 h-5 text-slate-600" />
                         </button>
@@ -249,7 +250,7 @@ export default function Dashboard() {
                         >
                           <Bell className="w-5 h-5 text-slate-600" />
                           {notifications > 0 && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center border-2 border-white">
+                            <div className="absolute flex items-center justify-center w-5 h-5 border-2 border-white rounded-full -top-1 -right-1 bg-gradient-to-br from-blue-500 to-cyan-500">
                               <span className="text-xs font-bold text-white">{notifications}</span>
                             </div>
                           )}
@@ -269,11 +270,11 @@ export default function Dashboard() {
                                 profile?.role === 'dga' ? 'bg-gradient-to-br from-rose-500 to-rose-600' : 
                                 'bg-gradient-to-br from-slate-500 to-slate-600'
                               } flex items-center justify-center shadow-lg`}>
-                                <span className="text-white font-bold text-lg">
+                                <span className="text-lg font-bold text-white">
                                   {profile?.full_name?.charAt(0) || 'U'}
                                 </span>
                               </div>
-                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center border-2 border-slate-100">
+                              <div className="absolute flex items-center justify-center w-4 h-4 bg-white border-2 rounded-full -bottom-1 -right-1 border-slate-100">
                                 <div className={`w-2 h-2 rounded-full ${
                                   profile?.role === 'manager' ? 'bg-emerald-500' :
                                   profile?.role === 'rh' ? 'bg-blue-500' :
@@ -287,7 +288,7 @@ export default function Dashboard() {
                               <p className="font-semibold text-slate-900">{profile?.full_name}</p>
                               <div className="flex items-center space-x-2">
                                 <span className="text-xs text-slate-500">{profile?.department}</span>
-                                <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                                <div className="w-1 h-1 rounded-full bg-slate-300"></div>
                                 <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                                   profile?.role === 'manager' ? 'bg-emerald-100 text-emerald-700' :
                                   profile?.role === 'rh' ? 'bg-blue-100 text-blue-700' :
@@ -312,9 +313,9 @@ export default function Dashboard() {
                       >
                         <div className="flex items-center space-x-2">
                           <div className="p-1.5 bg-slate-100 group-hover:bg-red-50 rounded-lg transition-colors">
-                            <LogOut className="w-4 h-4 text-slate-600 group-hover:text-red-500 transition-colors" />
+                            <LogOut className="w-4 h-4 transition-colors text-slate-600 group-hover:text-red-500" />
                           </div>
-                          <span className="font-medium text-slate-700 group-hover:text-red-600 transition-colors hidden md:inline">
+                          <span className="hidden font-medium transition-colors text-slate-700 group-hover:text-red-600 md:inline">
                             Déconnexion
                           </span>
                         </div>
@@ -326,7 +327,7 @@ export default function Dashboard() {
             </div>
           </header>
 
-          <main className="px-6 lg:px-8 pb-8">
+          <main className="px-6 pb-8 lg:px-8">
             {/* Bannière du module actif */}
             {getCurrentModule && (
               <div className="mb-8 animate-fadeIn">
@@ -335,34 +336,34 @@ export default function Dashboard() {
                   <div className={`absolute inset-0 bg-gradient-to-r ${getCurrentModule.gradient} opacity-5 animate-pulse`}></div>
                   
                   <div className="relative z-10">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                    <div className="flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
                       <div className="flex items-start space-x-4">
                         <div className="relative">
                           <div className={`p-4 rounded-2xl ${getCurrentModule.iconBg} shadow-xl`}>
                             <getCurrentModule.icon className="w-10 h-10 text-white" />
                           </div>
-                          <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-white to-slate-100 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                          <div className="absolute flex items-center justify-center w-6 h-6 border-2 border-white rounded-full shadow-lg -top-2 -right-2 bg-gradient-to-br from-white to-slate-100">
                             <div className={`w-3 h-3 rounded-full ${getCurrentModule.badgeColor}`}></div>
                           </div>
                         </div>
                         <div>
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h2 className="text-2xl lg:text-3xl font-bold text-slate-900">
+                          <div className="flex items-center mb-2 space-x-3">
+                            <h2 className="text-2xl font-bold lg:text-3xl text-slate-900">
                               {getCurrentModule.name}
                             </h2>
                             <div className="flex items-center space-x-1">
                               <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
-                              <span className="text-sm font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+                              <span className="px-2 py-1 text-sm font-medium rounded-full text-amber-600 bg-amber-50">
                                 Actif
                               </span>
                             </div>
                           </div>
-                          <p className="text-slate-600 mb-4 max-w-2xl">{getCurrentModule.description}</p>
+                          <p className="max-w-2xl mb-4 text-slate-600">{getCurrentModule.description}</p>
                           <div className="flex flex-wrap gap-2">
                             {getCurrentModule.features.map((feature, idx) => (
                               <span 
                                 key={idx}
-                                className="inline-flex items-center space-x-2 bg-white/80 border border-white/50 px-4 py-2 rounded-xl text-sm text-slate-700 shadow-sm"
+                                className="inline-flex items-center px-4 py-2 space-x-2 text-sm border shadow-sm bg-white/80 border-white/50 rounded-xl text-slate-700"
                               >
                                 <Target className="w-3 h-3 text-emerald-500" />
                                 <span className="font-medium">{feature}</span>
@@ -371,12 +372,12 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </div>
-                      <div className="bg-white/90 border border-white/50 rounded-xl px-6 py-4 shadow-lg">
+                      <div className="px-6 py-4 border shadow-lg bg-white/90 border-white/50 rounded-xl">
                         <div className="flex items-center space-x-3">
                           <TrendingUp className="w-5 h-5 text-emerald-500" />
                           <div>
                             <p className="font-bold text-slate-900">{getCurrentModule.stats}</p>
-                            <p className="text-xs text-slate-500 mt-1">Dernière mise à jour</p>
+                            <p className="mt-1 text-xs text-slate-500">Dernière mise à jour</p>
                           </div>
                         </div>
                       </div>
@@ -387,7 +388,7 @@ export default function Dashboard() {
             )}
 
             {/* Sélection d'espace - Cartes professionnelles améliorées */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+            <div className="grid grid-cols-1 gap-8 mb-10 lg:grid-cols-3">
               {modules.map((module) => {
                 const Icon = module.icon;
                 const isActive = activeModule === module.id;
@@ -415,7 +416,7 @@ export default function Dashboard() {
                       } transition-opacity duration-500`}></div>
                       
                       {/* Barre de progression en haut */}
-                      <div className="relative h-2 bg-white/20 overflow-hidden">
+                      <div className="relative h-2 overflow-hidden bg-white/20">
                         <div 
                           className={`h-full bg-gradient-to-r ${module.gradient} transition-all duration-1000 ease-out`}
                           style={{ width: `${module.progress}%` }}
@@ -438,11 +439,11 @@ export default function Dashboard() {
                               }`} />
                             </div>
                             <div>
-                              <div className="flex items-center space-x-2 mb-1">
+                              <div className="flex items-center mb-1 space-x-2">
                                 <h3 className="text-xl font-bold text-slate-900">{module.name}</h3>
                                 {isActive && (
                                   <div className="flex items-center space-x-1 animate-pulse">
-                                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                                     <span className="text-xs font-medium text-emerald-600">Actif</span>
                                   </div>
                                 )}
@@ -454,10 +455,10 @@ export default function Dashboard() {
                           {/* Badge d'alerte */}
                           {module.alerts > 0 && (
                             <div className="relative">
-                              <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center shadow-lg">
+                              <div className="flex items-center justify-center w-8 h-8 rounded-lg shadow-lg bg-gradient-to-br from-red-500 to-orange-500">
                                 <span className="text-xs font-bold text-white">{module.alerts}</span>
                               </div>
-                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full border-2 border-slate-100 flex items-center justify-center">
+                              <div className="absolute flex items-center justify-center w-3 h-3 bg-white border-2 rounded-full -top-1 -right-1 border-slate-100">
                                 <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></div>
                               </div>
                             </div>
@@ -469,7 +470,7 @@ export default function Dashboard() {
                           {module.metrics.map((metric, idx) => (
                             <div 
                               key={idx}
-                              className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl p-4"
+                              className="p-4 border bg-white/80 backdrop-blur-sm border-white/50 rounded-xl"
                             >
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-xs font-medium text-slate-500">{metric.label}</span>
@@ -499,7 +500,7 @@ export default function Dashboard() {
                             {module.features.map((feature, idx) => (
                               <div 
                                 key={idx}
-                                className="flex items-center space-x-3 p-3 bg-white/60 rounded-xl hover:bg-white/80 transition-colors"
+                                className="flex items-center p-3 space-x-3 transition-colors bg-white/60 rounded-xl hover:bg-white/80"
                               >
                                 <div className={`w-2 h-2 rounded-full ${
                                   isActive 
@@ -507,7 +508,7 @@ export default function Dashboard() {
                                     : 'bg-slate-300 group-hover:bg-emerald-400'
                                 } transition-colors`}></div>
                                 <span className="text-sm font-medium text-slate-700">{feature}</span>
-                                <ChevronRight className="w-4 h-4 text-slate-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <ChevronRight className="w-4 h-4 ml-auto transition-opacity opacity-0 text-slate-400 group-hover:opacity-100" />
                               </div>
                             ))}
                           </div>
@@ -557,7 +558,7 @@ export default function Dashboard() {
                     
                     {/* Indicateur d'état (seulement pour actif) */}
                     {isActive && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <div className="absolute -translate-x-1/2 -top-3 left-1/2">
                         <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg flex items-center space-x-2">
                           <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                           <span>Module sélectionné</span>
@@ -571,9 +572,9 @@ export default function Dashboard() {
 
             {/* Contenu du module sélectionné */}
             <div className="mb-8">
-              <div className="relative bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl shadow-slate-300/10 overflow-hidden">
+              <div className="relative overflow-hidden border shadow-2xl bg-gradient-to-br from-white/95 to-white/90 backdrop-blur-xl border-white/30 rounded-3xl shadow-slate-300/10">
                 {/* Barre d'outils du module */}
-                <div className="bg-gradient-to-r from-white to-white/90 border-b border-white/50 px-6 py-4">
+                <div className="px-6 py-4 border-b bg-gradient-to-r from-white to-white/90 border-white/50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className={`w-3 h-3 rounded-full ${getCurrentModule?.badgeColor}`}></div>
@@ -582,13 +583,13 @@ export default function Dashboard() {
                       </h3>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button className="p-2 rounded-xl hover:bg-slate-100 transition-colors" title="Rafraîchir">
-                        <ArrowRight className="w-4 h-4 text-slate-600 rotate-90" />
+                      <button className="p-2 transition-colors rounded-xl hover:bg-slate-100" title="Rafraîchir">
+                        <ArrowRight className="w-4 h-4 rotate-90 text-slate-600" />
                       </button>
-                      <button className="p-2 rounded-xl hover:bg-slate-100 transition-colors" title="Paramètres">
+                      <button className="p-2 transition-colors rounded-xl hover:bg-slate-100" title="Paramètres">
                         <Settings className="w-4 h-4 text-slate-600" />
                       </button>
-                      <button className="p-2 rounded-xl hover:bg-slate-100 transition-colors" title="Vue détaillée">
+                      <button className="p-2 transition-colors rounded-xl hover:bg-slate-100" title="Vue détaillée">
                         <Eye className="w-4 h-4 text-slate-600" />
                       </button>
                     </div>
@@ -604,14 +605,14 @@ export default function Dashboard() {
             </div>
 
             {/* Footer avec informations système */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
               <div className="flex items-center space-x-4 text-sm text-slate-600">
-                <div className="flex items-center space-x-2 px-4 py-2 bg-white/80 border border-slate-200/50 rounded-xl">
+                <div className="flex items-center px-4 py-2 space-x-2 border bg-white/80 border-slate-200/50 rounded-xl">
                   <Shield className="w-4 h-4 text-emerald-500" />
                   <span>Système sécurisé ISO 27001</span>
                 </div>
-                <div className="hidden md:flex items-center space-x-2">
-                  <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                <div className="items-center hidden space-x-2 md:flex">
+                  <div className="w-1 h-1 rounded-full bg-slate-300"></div>
                   <div className="flex items-center space-x-2">
                     <UserCheck className="w-4 h-4 text-blue-500" />
                     <span>Connecté • {formatTime(currentTime)}</span>
@@ -619,11 +620,11 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="text-sm text-slate-500 flex items-center space-x-3">
-                <span className="px-3 py-1 bg-slate-100 rounded-full">v2.5.1</span>
+              <div className="flex items-center space-x-3 text-sm text-slate-500">
+                <span className="px-3 py-1 rounded-full bg-slate-100">v2.5.1</span>
                 <span>Kilani Groupe • Plateforme RH Digitalisée • © 2026</span>
                 <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                   <span className="text-xs text-emerald-600">Opérationnel</span>
                 </div>
               </div>
@@ -656,6 +657,9 @@ export default function Dashboard() {
           animation: float 3s ease-in-out infinite;
         }
       `}</style>
+
+
+      <Chatbot />
     </>
   );
 }

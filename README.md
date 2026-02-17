@@ -28,14 +28,8 @@ Application web professionnelle de gestion des ressources humaines pour Kilani G
 - React + TypeScript
 - Vite
 - Tailwind CSS
-- Supabase (Base de données et authentification)
 
 ## Configuration
-
-1. Configurez vos variables d'environnement dans le fichier `.env`:
-```
-VITE_SUPABASE_URL=votre_url_supabase
-VITE_SUPABASE_ANON_KEY=votre_cle_anon_supabase
 ```
 
 2. Installez les dépendances:
