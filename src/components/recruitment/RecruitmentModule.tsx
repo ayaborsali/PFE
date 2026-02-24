@@ -1,16 +1,20 @@
 // Composant principal du module de recrutement, intégrant les différentes vues et fonctionnalités
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Zap, Users, Briefcase, Target, TrendingUp, CheckCircle, FileText } from 'lucide-react';
+import { 
+  Plus, Search, Filter, Zap, Users, Briefcase, Target, 
+  TrendingUp, CheckCircle, FileText, Calendar 
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import RecruitmentRequestList from './RecruitmentRequestList';
-import ValidationRequestList from './ValidationRequestList'; // Créez ce composant
+import ValidationRequestList from './ValidationRequestList';
 import NewRequestModal from './NewRequestModal';
 import JobOffersList from './JobOffersList';
 import CandidatesList from './CandidatesList';
+import InterviewEvaluationList from './InterviewEvaluationList';
 
-type View = 'requests' | 'validate' | 'offers' | 'candidates';
+type View = 'requests' | 'validate' | 'offers' | 'candidates' | 'interviews';
 
 export default function RecruitmentModule() {
   const { profile } = useAuth();
@@ -105,33 +109,59 @@ export default function RecruitmentModule() {
       color: 'amber',
       description: 'Base de données candidats'
     },
+    { 
+      id: 'interviews' as View, 
+      label: 'Entretiens', 
+      count: stats.interviews,
+      icon: Calendar,
+      color: 'rose',
+      description: 'Entretiens et évaluations'
+    },
   ];
 
   const canCreateRequest = ['manager', 'directeur', 'rh'].includes(profile?.role?.toLowerCase() || '');
   const canValidateRequests = ['manager', 'directeur', 'rh', 'daf', 'dga'].includes(profile?.role?.toLowerCase() || '');
 
+  // Fonction pour obtenir le placeholder de recherche selon la vue active
+  const getSearchPlaceholder = () => {
+    switch (activeView) {
+      case 'requests':
+        return "Rechercher demandes par titre, département, statut...";
+      case 'validate':
+        return "Rechercher demandes à valider...";
+      case 'offers':
+        return "Rechercher offres par titre, département, localisation...";
+      case 'candidates':
+        return "Rechercher candidats par nom, poste, compétence...";
+      case 'interviews':
+        return "Rechercher entretiens par nom, poste, interviewer...";
+      default:
+        return "Rechercher...";
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header avec statistiques */}
-      <div className="bg-gradient-to-br from-white to-slate-50 border border-slate-200/50 rounded-2xl shadow-sm p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="p-6 border shadow-sm bg-gradient-to-br from-white to-slate-50 border-slate-200/50 rounded-2xl">
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
           <div className="flex-1">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg">
-                <Zap className="w-7 h-7 text-white" />
+            <div className="flex items-center mb-4 space-x-3">
+              <div className="p-3 shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl">
+                <Zap className="text-white w-7 h-7" />
               </div>
               <div>
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                <h2 className="text-3xl font-bold text-transparent bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text">
                   Module Recrutement
                 </h2>
-                <p className="text-slate-600 mt-1">Digitalisation complète du workflow RH</p>
+                <p className="mt-1 text-slate-600">Digitalisation complète du workflow RH</p>
               </div>
             </div>
             
             {/* Statistiques en ligne */}
             <div className="flex flex-wrap gap-4">
-              <div className="flex items-center space-x-3 bg-white border border-slate-200/70 px-4 py-3 rounded-xl shadow-sm">
-                <div className="p-2 bg-emerald-100 rounded-lg">
+              <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
+                <div className="p-2 rounded-lg bg-emerald-100">
                   <TrendingUp className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
@@ -141,7 +171,7 @@ export default function RecruitmentModule() {
               </div>
               
               {canValidateRequests && (
-                <div className="flex items-center space-x-3 bg-white border border-slate-200/70 px-4 py-3 rounded-xl shadow-sm">
+                <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <CheckCircle className="w-5 h-5 text-blue-600" />
                   </div>
@@ -152,8 +182,8 @@ export default function RecruitmentModule() {
                 </div>
               )}
               
-              <div className="flex items-center space-x-3 bg-white border border-slate-200/70 px-4 py-3 rounded-xl shadow-sm">
-                <div className="p-2 bg-violet-100 rounded-lg">
+              <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
+                <div className="p-2 rounded-lg bg-violet-100">
                   <Target className="w-5 h-5 text-violet-600" />
                 </div>
                 <div>
@@ -162,8 +192,8 @@ export default function RecruitmentModule() {
                 </div>
               </div>
               
-              <div className="flex items-center space-x-3 bg-white border border-slate-200/70 px-4 py-3 rounded-xl shadow-sm">
-                <div className="p-2 bg-amber-100 rounded-lg">
+              <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
+                <div className="p-2 rounded-lg bg-amber-100">
                   <Users className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
@@ -172,9 +202,9 @@ export default function RecruitmentModule() {
                 </div>
               </div>
               
-              <div className="flex items-center space-x-3 bg-white border border-slate-200/70 px-4 py-3 rounded-xl shadow-sm">
-                <div className="p-2 bg-rose-100 rounded-lg">
-                  <Briefcase className="w-5 h-5 text-rose-600" />
+              <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
+                <div className="p-2 rounded-lg bg-rose-100">
+                  <Calendar className="w-5 h-5 text-rose-600" />
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Entretiens</p>
@@ -197,20 +227,55 @@ export default function RecruitmentModule() {
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
               </button>
-              <p className="text-xs text-slate-500 mt-2">Lancez un nouveau processus de recrutement</p>
+              <p className="mt-2 text-xs text-slate-500">Lancez un nouveau processus de recrutement</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Barre de navigation et recherche */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-1">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5">
+      <div className="p-1 bg-white border shadow-sm rounded-2xl border-slate-200">
+        <div className="flex flex-col justify-between gap-4 p-5 lg:flex-row lg:items-center">
           {/* Navigation par onglets */}
-          <div className="flex items-center space-x-1 overflow-x-auto pb-2 lg:pb-0">
+          <div className="flex items-center pb-2 space-x-1 overflow-x-auto lg:pb-0">
             {views.map((view) => {
               const Icon = view.icon;
               const isActive = activeView === view.id;
+              
+              // Classes dynamiques pour les couleurs
+              const getActiveClasses = () => {
+                switch (view.color) {
+                  case 'emerald':
+                    return 'bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200';
+                  case 'blue':
+                    return 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border-blue-200';
+                  case 'violet':
+                    return 'bg-gradient-to-r from-violet-50 to-purple-50 text-violet-700 border-violet-200';
+                  case 'amber':
+                    return 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border-amber-200';
+                  case 'rose':
+                    return 'bg-gradient-to-r from-rose-50 to-pink-50 text-rose-700 border-rose-200';
+                  default:
+                    return 'bg-slate-50 text-slate-700 border-slate-200';
+                }
+              };
+
+              const getCountClasses = () => {
+                switch (view.color) {
+                  case 'emerald':
+                    return 'bg-emerald-200 text-emerald-800';
+                  case 'blue':
+                    return 'bg-blue-200 text-blue-800';
+                  case 'violet':
+                    return 'bg-violet-200 text-violet-800';
+                  case 'amber':
+                    return 'bg-amber-200 text-amber-800';
+                  case 'rose':
+                    return 'bg-rose-200 text-rose-800';
+                  default:
+                    return 'bg-slate-200 text-slate-700';
+                }
+              };
               
               return (
                 <button
@@ -218,7 +283,7 @@ export default function RecruitmentModule() {
                   onClick={() => setActiveView(view.id)}
                   className={`flex items-center space-x-3 px-5 py-3 rounded-xl font-medium transition-all duration-300 whitespace-nowrap ${
                     isActive
-                      ? `bg-gradient-to-r from-${view.color}-50 to-${view.color}-100 text-${view.color}-700 border border-${view.color}-200 shadow-sm`
+                      ? getActiveClasses()
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
@@ -226,7 +291,7 @@ export default function RecruitmentModule() {
                   <span>{view.label}</span>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                     isActive
-                      ? `bg-${view.color}-200 text-${view.color}-800`
+                      ? getCountClasses()
                       : 'bg-slate-200 text-slate-700'
                   }`}>
                     {view.count}
@@ -239,37 +304,47 @@ export default function RecruitmentModule() {
           {/* Barre de recherche */}
           <div className="relative flex-1 max-w-md">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Search className="absolute w-5 h-5 -translate-y-1/2 left-3 top-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder={
-                  activeView === 'requests' ? "Rechercher demandes..." :
-                  activeView === 'validate' ? "Rechercher demandes à valider..." :
-                  activeView === 'offers' ? "Rechercher offres..." :
-                  "Rechercher candidats..."
-                }
+                placeholder={getSearchPlaceholder()}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-11 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all"
               />
-              <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 hover:text-slate-600 cursor-pointer" />
+              <Filter className="absolute w-5 h-5 -translate-y-1/2 cursor-pointer right-3 top-1/2 text-slate-400 hover:text-slate-600" />
             </div>
           </div>
         </div>
 
         {/* Contenu */}
         <div className="px-5 pb-5">
-          {activeView === 'requests' && <RecruitmentRequestList onUpdate={fetchStats} searchTerm={searchTerm} />}
-          {activeView === 'validate' && canValidateRequests && <ValidationRequestList onUpdate={fetchStats} searchTerm={searchTerm} />}
-          {activeView === 'offers' && <JobOffersList onUpdate={fetchStats} searchTerm={searchTerm} />}
-          {activeView === 'candidates' && <CandidatesList searchTerm={searchTerm} />}
+          {activeView === 'requests' && (
+            <RecruitmentRequestList onUpdate={fetchStats} searchTerm={searchTerm} />
+          )}
+          
+          {activeView === 'validate' && canValidateRequests && (
+            <ValidationRequestList onUpdate={fetchStats} searchTerm={searchTerm} />
+          )}
+          
+          {activeView === 'offers' && (
+            <JobOffersList onUpdate={fetchStats} searchTerm={searchTerm} />
+          )}
+          
+          {activeView === 'candidates' && (
+            <CandidatesList searchTerm={searchTerm} />
+          )}
+          
+          {activeView === 'interviews' && (
+            <InterviewEvaluationList searchTerm={searchTerm} />
+          )}
           
           {activeView === 'validate' && !canValidateRequests && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
+            <div className="py-12 text-center">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100">
                 <CheckCircle className="w-8 h-8 text-slate-400" />
               </div>
-              <h3 className="text-lg font-medium text-slate-900 mb-2">Accès non autorisé</h3>
+              <h3 className="mb-2 text-lg font-medium text-slate-900">Accès non autorisé</h3>
               <p className="text-slate-600">
                 Vous n'avez pas les permissions nécessaires pour valider des demandes
               </p>
@@ -290,36 +365,47 @@ export default function RecruitmentModule() {
       )}
 
       {/* Guide rapide */}
-      <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-200/70 rounded-2xl p-6">
-        <h3 className="font-bold text-slate-900 mb-4">💡 Processus de recrutement</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-slate-200/50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center mb-3">
+      <div className="p-6 border bg-gradient-to-br from-slate-50 to-white border-slate-200/70 rounded-2xl">
+        <h3 className="mb-4 font-bold text-slate-900">💡 Processus de recrutement</h3>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
+            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-lg bg-emerald-100">
               <span className="font-bold text-emerald-600">1</span>
             </div>
-            <h4 className="font-semibold text-slate-900 mb-1">Expression de besoin</h4>
+            <h4 className="mb-1 font-semibold text-slate-900">Expression de besoin</h4>
             <p className="text-sm text-slate-600">Manager crée la demande avec justification</p>
           </div>
-          <div className="bg-white border border-slate-200/50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
+          
+          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
+            <div className="flex items-center justify-center w-10 h-10 mb-3 bg-blue-100 rounded-lg">
               <span className="font-bold text-blue-600">2</span>
             </div>
-            <h4 className="font-semibold text-slate-900 mb-1">Validation hiérarchique</h4>
+            <h4 className="mb-1 font-semibold text-slate-900">Validation hiérarchique</h4>
             <p className="text-sm text-slate-600">Circuit: Manager → Directeur → DRH → DAF → DGA/DG</p>
           </div>
-          <div className="bg-white border border-slate-200/50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center mb-3">
+          
+          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
+            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-lg bg-violet-100">
               <span className="font-bold text-violet-600">3</span>
             </div>
-            <h4 className="font-semibold text-slate-900 mb-1">Publication et collecte</h4>
+            <h4 className="mb-1 font-semibold text-slate-900">Publication et collecte</h4>
             <p className="text-sm text-slate-600">Offre publiée automatiquement sur les job boards</p>
           </div>
-          <div className="bg-white border border-slate-200/50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mb-3">
+          
+          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
+            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-lg bg-amber-100">
               <span className="font-bold text-amber-600">4</span>
             </div>
-            <h4 className="font-semibold text-slate-900 mb-1">Sélection et intégration</h4>
-            <p className="text-sm text-slate-600">Pré-sélection IA, entretiens, et onboarding</p>
+            <h4 className="mb-1 font-semibold text-slate-900">Pré-sélection IA</h4>
+            <p className="text-sm text-slate-600">Analyse automatique des CV avec scoring</p>
+          </div>
+          
+          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
+            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-lg bg-rose-100">
+              <span className="font-bold text-rose-600">5</span>
+            </div>
+            <h4 className="mb-1 font-semibold text-slate-900">Entretiens et évaluation</h4>
+            <p className="text-sm text-slate-600">Planification et évaluation structurée</p>
           </div>
         </div>
       </div>

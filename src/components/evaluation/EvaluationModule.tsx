@@ -3,17 +3,24 @@ import {
   Plus, BarChart3, Clock, CheckCircle, AlertCircle, 
   Users, TrendingUp, Filter, Download, Calendar,
   Award, Target, Star, UserCheck, RefreshCw,
-  Edit, Send, MessageSquare, Mail, Bell
+  Edit, Send, MessageSquare, Mail, Bell,
+  UserPlus, UserMinus, Briefcase, GraduationCap
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import EvaluationList from './EvaluationList';
 import NewEvaluationModal from './NewEvaluationModal';
+import ProbationEvaluationForm from './ProbationEvaluationForm';
+import EmployeeSelector from './EmployeeSelector';
 import toast from 'react-hot-toast';
 
 export default function EvaluationModule() {
   const { profile } = useAuth();
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showProbationForm, setShowProbationForm] = useState(false);
+  const [showEmployeeSelector, setShowEmployeeSelector] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedEmployeeContract, setSelectedEmployeeContract] = useState(null);
   const [stats, setStats] = useState({
     draft: 0,
     pending: 0,
@@ -21,8 +28,10 @@ export default function EvaluationModule() {
     completed: 0,
     overdue: 0,
     total: 0,
-    closureRate: 0, // Taux de clôture
-    pendingN2Validation: 0, // En attente validation N+2
+    closureRate: 0,
+    pendingN2Validation: 0,
+    probationPending: 0,
+    probationCompleted: 0,
   });
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -34,12 +43,17 @@ export default function EvaluationModule() {
   const [showFilters, setShowFilters] = useState(false);
   const [timeRange, setTimeRange] = useState('30days');
   const [contractNotifications, setContractNotifications] = useState([]);
+  const [probationEmployees, setProbationEmployees] = useState([]);
 
   useEffect(() => {
     fetchStats();
     checkContractDeadlines();
+    checkProbationPeriods();
     // Vérifier toutes les 24h pour les notifications automatiques
-    const interval = setInterval(checkContractDeadlines, 24 * 60 * 60 * 1000);
+    const interval = setInterval(() => {
+      checkContractDeadlines();
+      checkProbationPeriods();
+    }, 24 * 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [timeRange]);
 
@@ -111,12 +125,84 @@ export default function EvaluationModule() {
 
       if (notifError) throw notifError;
 
-      // Ici, intégrer avec votre service d'envoi d'emails
-      // Exemple: await sendEmail({...})
-      
       console.log(`Notification envoyée pour le contrat ${contract.id}`);
     } catch (error) {
       console.error('Erreur envoi notification:', error);
+    }
+  };
+
+  // Fonction pour vérifier les périodes d'essai
+  const checkProbationPeriods = async () => {
+    try {
+      const today = new Date();
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+      // Récupérer les employés avec des périodes d'essai actives
+      const { data: employees, error } = await supabase
+        .from('employees')
+        .select(`
+          *,
+          contracts:employee_contracts(
+            *,
+            manager:profiles(*)
+          )
+        `)
+        .eq('status', 'active')
+        .lte('probation_end_date', thirtyDaysFromNow.toISOString())
+        .gte('probation_end_date', today.toISOString());
+
+      if (error) throw error;
+
+      // Filtrer pour ne garder que ceux avec période d'essai
+      const employeesWithProbation = employees.filter(emp => 
+        emp.probation_end_date && 
+        !emp.probation_evaluation_completed
+      );
+
+      setProbationEmployees(employeesWithProbation);
+
+      // Vérifier les notifications pour périodes d'essai
+      for (const employee of employeesWithProbation) {
+        await checkProbationNotification(employee);
+      }
+    } catch (error) {
+      console.error('Erreur vérification périodes d\'essai:', error);
+    }
+  };
+
+  // Fonction pour vérifier/envoyer notification période d'essai
+  const checkProbationNotification = async (employee) => {
+    try {
+      const { data: existingNotification } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('employee_id', employee.id)
+        .eq('type', 'probation_reminder_30d')
+        .single();
+
+      if (!existingNotification && employee.contracts?.[0]?.manager?.email) {
+        // Enregistrer la notification
+        await supabase
+          .from('notifications')
+          .insert({
+            type: 'probation_reminder_30d',
+            employee_id: employee.id,
+            recipient_id: employee.contracts[0].manager_id,
+            recipient_email: employee.contracts[0].manager.email,
+            sent_at: new Date().toISOString(),
+            status: 'sent',
+            data: {
+              employee_name: `${employee.first_name} ${employee.last_name}`,
+              probation_end_date: employee.probation_end_date,
+              days_remaining: Math.ceil((new Date(employee.probation_end_date) - new Date()) / (1000 * 60 * 60 * 24))
+            }
+          });
+
+        console.log(`Notification période d'essai envoyée pour ${employee.first_name} ${employee.last_name}`);
+      }
+    } catch (error) {
+      console.error('Erreur envoi notification période d\'essai:', error);
     }
   };
 
@@ -167,7 +253,6 @@ export default function EvaluationModule() {
           status: 'sent'
         });
 
-      // Ici, intégrer avec votre service d'envoi d'emails
       console.log(`Rappel envoyé à ${recipient.email} pour l'évaluation ${evaluation.id}`);
     }
   };
@@ -203,6 +288,15 @@ export default function EvaluationModule() {
 
       if (error) throw error;
 
+      // Récupérer les employés avec période d'essai en cours
+      const { data: probationEmployees, error: probationError } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('probation_evaluation_completed', false)
+        .not('probation_end_date', 'is', null);
+
+      if (probationError) throw probationError;
+
       // Calculer le taux de clôture
       const completedEvaluations = evaluations.filter(e => e.status === 'completed').length;
       const inProgressEvaluations = evaluations.filter(e => 
@@ -228,6 +322,8 @@ export default function EvaluationModule() {
         total: evaluations.length,
         closureRate,
         pendingN2Validation: evaluations.filter(e => e.status === 'pending_n2').length,
+        probationPending: probationEmployees?.length || 0,
+        probationCompleted: evaluations.filter(e => e.evaluation_type === 'probation' && e.status === 'completed').length,
       };
 
       setStats(statsData);
@@ -330,6 +426,7 @@ export default function EvaluationModule() {
     return statusFlow[currentStatus] || currentStatus;
   };
 
+  // Fonction d'export (ajoutée pour corriger l'erreur)
   const handleExport = async () => {
     try {
       const { data: evaluations, error } = await supabase
@@ -404,8 +501,80 @@ export default function EvaluationModule() {
     }
   };
 
-  const canCreateEvaluation = () => {
-    return profile?.role && ['Manager', 'Director', 'DRH', 'HR', 'Payroll'].includes(profile.role);
+  // Fonction pour gérer le clic sur un employé
+  const handleEmployeeSelect = async (employee) => {
+    setSelectedEmployee(employee);
+    setShowEmployeeSelector(false);
+    
+    // Récupérer les informations contractuelles
+    const { data: contract } = await supabase
+      .from('employee_contracts')
+      .select(`
+        *,
+        manager:profiles(*)
+      `)
+      .eq('employee_id', employee.id)
+      .eq('status', 'active')
+      .single();
+
+    setSelectedEmployeeContract(contract);
+    setShowProbationForm(true);
+  };
+
+  // Fonction pour ouvrir le sélecteur d'employés
+  const handleOpenProbationForm = () => {
+    setShowEmployeeSelector(true);
+  };
+
+  // Fonction pour sauvegarder l'évaluation de période d'essai
+  const handleSaveProbationEvaluation = async (evaluationData) => {
+    try {
+      // Créer l'évaluation de période d'essai
+      const { data: evaluation, error } = await supabase
+        .from('evaluations')
+        .insert({
+          employee_id: selectedEmployee.id,
+          manager_id: selectedEmployeeContract?.manager_id || profile.id,
+          evaluation_type: 'probation',
+          status: 'draft',
+          due_date: selectedEmployee.probation_end_date,
+          created_at: new Date().toISOString(),
+          created_by: profile.id,
+          department: selectedEmployee.department,
+          job_title: selectedEmployee.position,
+          probation_data: evaluationData,
+          comments: [{
+            author: profile.id,
+            author_name: `${profile.first_name} ${profile.last_name}`,
+            content: 'Création évaluation période d\'essai',
+            action: 'create',
+            timestamp: new Date().toISOString()
+          }]
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Marquer l'employé comme ayant eu son évaluation de période d'essai
+      await supabase
+        .from('employees')
+        .update({ 
+          probation_evaluation_completed: true,
+          probation_evaluation_id: evaluation.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedEmployee.id);
+
+      toast.success('Évaluation de période d\'essai créée avec succès');
+      setShowProbationForm(false);
+      setSelectedEmployee(null);
+      setSelectedEmployeeContract(null);
+      fetchStats();
+    } catch (error) {
+      console.error('Erreur création évaluation période d\'essai:', error);
+      toast.error('Erreur lors de la création de l\'évaluation');
+    }
   };
 
   // Fonction pour extraire les données contractuelles
@@ -427,6 +596,10 @@ export default function EvaluationModule() {
     }
   };
 
+  const canCreateEvaluation = () => {
+    return profile?.role && ['Manager', 'Director', 'DRH', 'HR', 'Payroll'].includes(profile.role);
+  };
+
   return (
     <div className="space-y-8">
       {/* En-tête avec actions */}
@@ -444,6 +617,11 @@ export default function EvaluationModule() {
                   {contractNotifications.length > 0 && (
                     <span className="px-2 py-1 ml-2 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
                       {contractNotifications.length} contrat(s) à échéance J-30
+                    </span>
+                  )}
+                  {stats.probationPending > 0 && (
+                    <span className="px-2 py-1 ml-2 text-xs font-medium text-green-800 bg-green-100 rounded-full">
+                      {stats.probationPending} période(s) d'essai J-30
                     </span>
                   )}
                 </p>
@@ -466,6 +644,20 @@ export default function EvaluationModule() {
             >
               <Download className="w-5 h-5" />
               <span>Export</span>
+            </button>
+
+            {/* Nouveau bouton pour évaluation période d'essai */}
+            <button
+              onClick={handleOpenProbationForm}
+              className="px-4 py-2.5 bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 font-medium rounded-lg hover:from-green-200 hover:to-emerald-200 transition-all flex items-center space-x-2"
+            >
+              <GraduationCap className="w-5 h-5" />
+              <span>Période d'essai</span>
+              {stats.probationPending > 0 && (
+                <span className="px-2 py-0.5 text-xs bg-green-200 text-green-800 rounded-full">
+                  {stats.probationPending}
+                </span>
+              )}
             </button>
             
             {canCreateEvaluation() && (
@@ -650,6 +842,19 @@ export default function EvaluationModule() {
           <p className="mt-1 text-sm text-slate-600">Finalisées</p>
         </div>
 
+        <div className="p-5 transition-shadow border border-green-200 shadow-sm bg-gradient-to-br from-white to-green-50 rounded-xl hover:shadow-md">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2.5 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg">
+              <GraduationCap className="w-6 h-6 text-green-600" />
+            </div>
+            <span className="text-xs font-medium px-2.5 py-1 bg-green-100 text-green-700 rounded-full">
+              Période essai
+            </span>
+          </div>
+          <p className="text-3xl font-bold text-slate-900">{stats.probationPending}</p>
+          <p className="mt-1 text-sm text-slate-600">À évaluer</p>
+        </div>
+
         <div className="p-5 transition-shadow border shadow-sm bg-gradient-to-br from-white to-slate-50 rounded-xl border-slate-200 hover:shadow-md">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2.5 bg-gradient-to-br from-slate-100 to-gray-100 rounded-lg">
@@ -685,21 +890,8 @@ export default function EvaluationModule() {
               Notifs
             </span>
           </div>
-          <p className="text-3xl font-bold text-slate-900">{contractNotifications.length}</p>
-          <p className="mt-1 text-sm text-slate-600">Contrats J-30</p>
-        </div>
-
-        <div className="p-5 transition-shadow border border-green-200 shadow-sm bg-gradient-to-br from-white to-green-50 rounded-xl hover:shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-2.5 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg">
-              <Bell className="w-6 h-6 text-green-600" />
-            </div>
-            <span className="text-xs font-medium px-2.5 py-1 bg-green-100 text-green-700 rounded-full">
-              Rappels
-            </span>
-          </div>
-          <p className="text-3xl font-bold text-slate-900">48h</p>
-          <p className="mt-1 text-sm text-slate-600">Délai traitement</p>
+          <p className="text-3xl font-bold text-slate-900">{contractNotifications.length + probationEmployees.length}</p>
+          <p className="mt-1 text-sm text-slate-600">Notifications</p>
         </div>
       </div>
 
@@ -729,14 +921,18 @@ export default function EvaluationModule() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="p-3 rounded-lg bg-slate-50">
-                <p className="mb-1 text-xs text-slate-500">Évaluations en cours</p>
+                <p className="mb-1 text-xs text-slate-500">En cours</p>
                 <p className="text-lg font-bold text-slate-900">{stats.inProgress}</p>
               </div>
               <div className="p-3 rounded-lg bg-emerald-50">
-                <p className="mb-1 text-xs text-emerald-500">Évaluations terminées</p>
+                <p className="mb-1 text-xs text-emerald-500">Terminées</p>
                 <p className="text-lg font-bold text-emerald-900">{stats.completed}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-green-50">
+                <p className="mb-1 text-xs text-green-500">Période essai</p>
+                <p className="text-lg font-bold text-green-900">{stats.probationCompleted}</p>
               </div>
             </div>
           </div>
@@ -768,6 +964,19 @@ export default function EvaluationModule() {
             
             <div className="flex items-center justify-between p-3 rounded-lg bg-white/50">
               <div className="flex items-center space-x-3">
+                <GraduationCap className="w-5 h-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-amber-900">Périodes d'essai J-30</p>
+                  <p className="text-xs text-amber-700">À évaluer prochainement</p>
+                </div>
+              </div>
+              <span className="px-2 py-1 text-sm font-medium text-green-800 bg-green-100 rounded-full">
+                {probationEmployees.length}
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-between p-3 rounded-lg bg-white/50">
+              <div className="flex items-center space-x-3">
                 <Clock className="w-5 h-5 text-rose-600" />
                 <div>
                   <p className="font-medium text-amber-900">Délai de traitement 48h</p>
@@ -781,6 +990,98 @@ export default function EvaluationModule() {
           </div>
         </div>
       </div>
+
+      {/* Liste des périodes d'essai à évaluer */}
+      {probationEmployees.length > 0 && (
+        <div className="overflow-hidden bg-white border border-green-200 shadow-sm rounded-2xl">
+          <div className="border-b border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <GraduationCap className="w-6 h-6 text-green-600" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-green-900">Périodes d'essai à évaluer</h3>
+                    <p className="text-sm text-green-700">
+                      {probationEmployees.length} employé(s) avec période d'essai se terminant dans les 30 jours
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {probationEmployees.map((employee) => {
+                const daysRemaining = Math.ceil((new Date(employee.probation_end_date) - new Date()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div
+                    key={employee.id}
+                    onClick={() => handleEmployeeSelect(employee)}
+                    className="p-4 transition-all border rounded-lg cursor-pointer border-slate-200 hover:shadow-md hover:border-green-300 group"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-green-100 to-emerald-100">
+                          <UserPlus className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-900 group-hover:text-green-700">
+                            {employee.first_name} {employee.last_name}
+                          </h4>
+                          <p className="text-sm text-slate-600">{employee.position}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        daysRemaining <= 7 
+                          ? 'bg-red-100 text-red-800'
+                          : daysRemaining <= 15
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        J-{daysRemaining}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">Fin période d'essai</span>
+                        <span className="font-medium text-slate-900">
+                          {new Date(employee.probation_end_date).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                      
+                      <div className="w-full h-1.5 rounded-full bg-slate-100">
+                        <div 
+                          className={`h-1.5 rounded-full transition-all ${
+                            daysRemaining <= 7 
+                              ? 'bg-red-500'
+                              : daysRemaining <= 15
+                              ? 'bg-amber-500'
+                              : 'bg-green-500'
+                          }`}
+                          style={{ width: `${Math.max(0, 100 - (daysRemaining / 30 * 100))}%` }}
+                        />
+                      </div>
+                      
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEmployeeSelect(employee);
+                        }}
+                        className="flex items-center justify-center w-full px-3 py-2 mt-2 space-x-2 text-sm font-medium text-green-700 transition-colors rounded-lg bg-green-50 hover:bg-green-100"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Évaluer</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Liste principale des évaluations */}
       <div className="overflow-hidden bg-white border shadow-sm rounded-2xl border-slate-200">
@@ -840,6 +1141,16 @@ export default function EvaluationModule() {
         </div>
       </div>
 
+      {/* Modal de sélection d'employé */}
+      {showEmployeeSelector && (
+        <EmployeeSelector
+          onClose={() => setShowEmployeeSelector(false)}
+          onSelect={handleEmployeeSelect}
+          filterType="probation"
+          title="Sélectionner un employé pour l'évaluation de période d'essai"
+        />
+      )}
+
       {/* Modal de nouvelle évaluation */}
       {showNewModal && (
         <NewEvaluationModal
@@ -850,6 +1161,20 @@ export default function EvaluationModule() {
             toast.success('Nouvelle évaluation créée avec succès');
           }}
           extractEmployeeData={extractEmployeeContractData}
+        />
+      )}
+
+      {/* Modal d'évaluation de période d'essai */}
+      {showProbationForm && selectedEmployee && (
+        <ProbationEvaluationForm
+          employee={selectedEmployee}
+          contract={selectedEmployeeContract}
+          onClose={() => {
+            setShowProbationForm(false);
+            setSelectedEmployee(null);
+            setSelectedEmployeeContract(null);
+          }}
+          onSave={handleSaveProbationEvaluation}
         />
       )}
     </div>
