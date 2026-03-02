@@ -363,52 +363,6 @@ export default function RecruitmentModule() {
           }}
         />
       )}
-
-      {/* Guide rapide */}
-      <div className="p-6 border bg-gradient-to-br from-slate-50 to-white border-slate-200/70 rounded-2xl">
-        <h3 className="mb-4 font-bold text-slate-900">💡 Processus de recrutement</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
-            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-lg bg-emerald-100">
-              <span className="font-bold text-emerald-600">1</span>
-            </div>
-            <h4 className="mb-1 font-semibold text-slate-900">Expression de besoin</h4>
-            <p className="text-sm text-slate-600">Manager crée la demande avec justification</p>
-          </div>
-          
-          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
-            <div className="flex items-center justify-center w-10 h-10 mb-3 bg-blue-100 rounded-lg">
-              <span className="font-bold text-blue-600">2</span>
-            </div>
-            <h4 className="mb-1 font-semibold text-slate-900">Validation hiérarchique</h4>
-            <p className="text-sm text-slate-600">Circuit: Manager → Directeur → DRH → DAF → DGA/DG</p>
-          </div>
-          
-          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
-            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-lg bg-violet-100">
-              <span className="font-bold text-violet-600">3</span>
-            </div>
-            <h4 className="mb-1 font-semibold text-slate-900">Publication et collecte</h4>
-            <p className="text-sm text-slate-600">Offre publiée automatiquement sur les job boards</p>
-          </div>
-          
-          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
-            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-lg bg-amber-100">
-              <span className="font-bold text-amber-600">4</span>
-            </div>
-            <h4 className="mb-1 font-semibold text-slate-900">Pré-sélection IA</h4>
-            <p className="text-sm text-slate-600">Analyse automatique des CV avec scoring</p>
-          </div>
-          
-          <div className="p-4 bg-white border border-slate-200/50 rounded-xl">
-            <div className="flex items-center justify-center w-10 h-10 mb-3 rounded-lg bg-rose-100">
-              <span className="font-bold text-rose-600">5</span>
-            </div>
-            <h4 className="mb-1 font-semibold text-slate-900">Entretiens et évaluation</h4>
-            <p className="text-sm text-slate-600">Planification et évaluation structurée</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

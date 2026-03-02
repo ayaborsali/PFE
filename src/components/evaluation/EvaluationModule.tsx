@@ -4,7 +4,7 @@ import {
   Users, TrendingUp, Filter, Download, Calendar,
   Award, Target, Star, UserCheck, RefreshCw,
   Edit, Send, MessageSquare, Mail, Bell,
-  UserPlus, UserMinus, Briefcase, GraduationCap
+  UserPlus, UserMinus, Briefcase, GraduationCap, Zap
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,6 +21,7 @@ export default function EvaluationModule() {
   const [showEmployeeSelector, setShowEmployeeSelector] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedEmployeeContract, setSelectedEmployeeContract] = useState(null);
+  const [testMode, setTestMode] = useState(true); // Mode test activé par défaut
   const [stats, setStats] = useState({
     draft: 0,
     pending: 0,
@@ -45,20 +46,435 @@ export default function EvaluationModule() {
   const [contractNotifications, setContractNotifications] = useState([]);
   const [probationEmployees, setProbationEmployees] = useState([]);
 
+  // Mocks de données pour le mode test
+  const mockEmployees = [
+    {
+      id: 'emp-001',
+      first_name: 'Jean',
+      last_name: 'Dupont',
+      position: 'Développeur Full Stack',
+      department: 'Direction IT',
+      site: 'Paris - Siège Social',
+      probation_end_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      probation_evaluation_completed: false,
+      status: 'active',
+      contracts: [
+        {
+          id: 'contract-001',
+          manager_id: 'manager-001',
+          manager: {
+            id: 'manager-001',
+            first_name: 'Sophie',
+            last_name: 'Martin',
+            email: 'sophie.martin@kilani.com',
+            role: 'Manager'
+          }
+        }
+      ]
+    },
+    {
+      id: 'emp-002',
+      first_name: 'Marie',
+      last_name: 'Laurent',
+      position: 'Chef de projet',
+      department: 'Direction IT',
+      site: 'Lyon',
+      probation_end_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      probation_evaluation_completed: false,
+      status: 'active',
+      contracts: [
+        {
+          id: 'contract-002',
+          manager_id: 'manager-001',
+          manager: {
+            id: 'manager-001',
+            first_name: 'Sophie',
+            last_name: 'Martin',
+            email: 'sophie.martin@kilani.com',
+            role: 'Manager'
+          }
+        }
+      ]
+    },
+    {
+      id: 'emp-003',
+      first_name: 'Thomas',
+      last_name: 'Bernard',
+      position: 'Commercial B2B',
+      department: 'Direction Commerciale',
+      site: 'Marseille',
+      probation_end_date: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
+      probation_evaluation_completed: false,
+      status: 'active',
+      contracts: [
+        {
+          id: 'contract-003',
+          manager_id: 'manager-002',
+          manager: {
+            id: 'manager-002',
+            first_name: 'Pierre',
+            last_name: 'Durand',
+            email: 'pierre.durand@kilani.com',
+            role: 'Manager'
+          }
+        }
+      ]
+    },
+    {
+      id: 'emp-004',
+      first_name: 'Julie',
+      last_name: 'Petit',
+      position: 'Assistante RH',
+      department: 'Ressources Humaines',
+      site: 'Paris - Siège Social',
+      probation_end_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      probation_evaluation_completed: false,
+      status: 'active',
+      contracts: [
+        {
+          id: 'contract-004',
+          manager_id: 'manager-003',
+          manager: {
+            id: 'manager-003',
+            first_name: 'Isabelle',
+            last_name: 'Moreau',
+            email: 'isabelle.moreau@kilani.com',
+            role: 'Manager'
+          }
+        }
+      ]
+    }
+  ];
+
+  const mockContracts = [
+    {
+      id: 'contract-001',
+      employee_id: 'emp-001',
+      manager_id: 'manager-001',
+      status: 'active',
+      end_date: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+      employee: mockEmployees[0],
+      manager: {
+        id: 'manager-001',
+        first_name: 'Sophie',
+        last_name: 'Martin',
+        email: 'sophie.martin@kilani.com',
+        role: 'Manager'
+      }
+    },
+    {
+      id: 'contract-002',
+      employee_id: 'emp-002',
+      manager_id: 'manager-001',
+      status: 'active',
+      end_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+      employee: mockEmployees[1],
+      manager: {
+        id: 'manager-001',
+        first_name: 'Sophie',
+        last_name: 'Martin',
+        email: 'sophie.martin@kilani.com',
+        role: 'Manager'
+      }
+    },
+    {
+      id: 'contract-003',
+      employee_id: 'emp-003',
+      manager_id: 'manager-002',
+      status: 'active',
+      end_date: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
+      employee: mockEmployees[2],
+      manager: {
+        id: 'manager-002',
+        first_name: 'Pierre',
+        last_name: 'Durand',
+        email: 'pierre.durand@kilani.com',
+        role: 'Manager'
+      }
+    }
+  ];
+
+  const mockEvaluations = [
+    {
+      id: 'eval-001',
+      employee_id: 'emp-001',
+      manager_id: 'manager-001',
+      n2_manager_id: 'n2-001',
+      evaluation_type: 'probation',
+      status: 'pending_n1',
+      due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      last_status_change: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      department: 'Direction IT',
+      job_title: 'Développeur Full Stack',
+      final_score: null,
+      comments: [
+        {
+          author: 'manager-001',
+          author_name: 'Sophie Martin',
+          content: 'Évaluation en attente de validation N+1',
+          action: 'create',
+          timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      ]
+    },
+    {
+      id: 'eval-002',
+      employee_id: 'emp-002',
+      manager_id: 'manager-001',
+      n2_manager_id: 'n2-001',
+      evaluation_type: 'probation',
+      status: 'pending_n2',
+      due_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+      last_status_change: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      department: 'Direction IT',
+      job_title: 'Chef de projet',
+      final_score: null,
+      comments: [
+        {
+          author: 'manager-001',
+          author_name: 'Sophie Martin',
+          content: 'Validé N+1, en attente N+2',
+          action: 'validate',
+          level: 'N+1',
+          timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      ]
+    },
+    {
+      id: 'eval-003',
+      employee_id: 'emp-003',
+      manager_id: 'manager-002',
+      n2_manager_id: 'n2-002',
+      evaluation_type: 'probation',
+      status: 'completed',
+      due_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+      last_status_change: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      validated_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      validated_by: 'n2-002',
+      department: 'Direction Commerciale',
+      job_title: 'Commercial B2B',
+      final_score: 4.2,
+      comments: [
+        {
+          author: 'manager-002',
+          author_name: 'Pierre Durand',
+          content: 'Validation N+1',
+          action: 'validate',
+          level: 'N+1',
+          timestamp: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        {
+          author: 'n2-002',
+          author_name: 'Marc Dubois',
+          content: 'Validation finale',
+          action: 'validate',
+          level: 'N+2',
+          timestamp: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      ]
+    },
+    {
+      id: 'eval-004',
+      employee_id: 'emp-004',
+      manager_id: 'manager-003',
+      n2_manager_id: 'n2-003',
+      evaluation_type: 'annual',
+      status: 'draft',
+      due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      last_status_change: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      department: 'Ressources Humaines',
+      job_title: 'Assistante RH',
+      final_score: null,
+      comments: []
+    },
+    {
+      id: 'eval-005',
+      employee_id: 'emp-001',
+      manager_id: 'manager-001',
+      n2_manager_id: 'n2-001',
+      evaluation_type: 'contract_end',
+      status: 'pending_drh',
+      due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+      last_status_change: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      department: 'Direction IT',
+      job_title: 'Développeur Full Stack',
+      final_score: null,
+      comments: [
+        {
+          author: 'manager-001',
+          author_name: 'Sophie Martin',
+          content: 'Validé N+1',
+          action: 'validate',
+          level: 'N+1',
+          timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        {
+          author: 'n2-001',
+          author_name: 'Claire Lefebvre',
+          content: 'Validé N+2, transmission DRH',
+          action: 'validate',
+          level: 'N+2',
+          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      ]
+    }
+  ];
+
+  const mockNotifications = [
+    {
+      id: 'notif-001',
+      type: 'contract_reminder_30d',
+      contract_id: 'contract-001',
+      recipient_id: 'manager-001',
+      recipient_email: 'sophie.martin@kilani.com',
+      sent_at: new Date().toISOString(),
+      status: 'sent',
+      data: {
+        employee_name: 'Jean Dupont',
+        contract_end_date: mockContracts[0].end_date,
+        days_remaining: 20
+      }
+    },
+    {
+      id: 'notif-002',
+      type: 'contract_reminder_30d',
+      contract_id: 'contract-002',
+      recipient_id: 'manager-001',
+      recipient_email: 'sophie.martin@kilani.com',
+      sent_at: new Date().toISOString(),
+      status: 'sent',
+      data: {
+        employee_name: 'Marie Laurent',
+        contract_end_date: mockContracts[1].end_date,
+        days_remaining: 10
+      }
+    },
+    {
+      id: 'notif-003',
+      type: 'probation_reminder_30d',
+      employee_id: 'emp-001',
+      recipient_id: 'manager-001',
+      recipient_email: 'sophie.martin@kilani.com',
+      sent_at: new Date().toISOString(),
+      status: 'sent',
+      data: {
+        employee_name: 'Jean Dupont',
+        probation_end_date: mockEmployees[0].probation_end_date,
+        days_remaining: 15
+      }
+    },
+    {
+      id: 'notif-004',
+      type: 'probation_reminder_30d',
+      employee_id: 'emp-002',
+      recipient_id: 'manager-001',
+      recipient_email: 'sophie.martin@kilani.com',
+      sent_at: new Date().toISOString(),
+      status: 'sent',
+      data: {
+        employee_name: 'Marie Laurent',
+        probation_end_date: mockEmployees[1].probation_end_date,
+        days_remaining: 5
+      }
+    },
+    {
+      id: 'notif-005',
+      type: 'evaluation_reminder_48h',
+      evaluation_id: 'eval-002',
+      recipient_id: 'n2-001',
+      recipient_email: 'claire.lefebvre@kilani.com',
+      sent_at: new Date().toISOString(),
+      status: 'sent'
+    }
+  ];
+
   useEffect(() => {
-    fetchStats();
-    checkContractDeadlines();
-    checkProbationPeriods();
-    // Vérifier toutes les 24h pour les notifications automatiques
-    const interval = setInterval(() => {
+    if (testMode) {
+      // Mode test - utiliser les mocks
+      loadMockData();
+    } else {
+      // Mode production - récupérer de la base de données
+      fetchStats();
       checkContractDeadlines();
       checkProbationPeriods();
+    }
+    
+    // Vérifier toutes les 24h pour les notifications automatiques
+    const interval = setInterval(() => {
+      if (!testMode) {
+        checkContractDeadlines();
+        checkProbationPeriods();
+      }
     }, 24 * 60 * 60 * 1000);
+    
     return () => clearInterval(interval);
-  }, [timeRange]);
+  }, [timeRange, testMode]);
+
+  // Charger les données mockées
+  const loadMockData = () => {
+    setLoading(true);
+    
+    // Statistiques mockées
+    const mockStats = {
+      draft: mockEvaluations.filter(e => e.status === 'draft').length,
+      pending: mockEvaluations.filter(e => e.status === 'pending_n1').length,
+      inProgress: mockEvaluations.filter(e => 
+        ['pending_n1', 'pending_n2', 'pending_drh', 'pending_daf', 'pending_dga'].includes(e.status)
+      ).length,
+      completed: mockEvaluations.filter(e => e.status === 'completed').length,
+      overdue: mockEvaluations.filter(e => {
+        const dueDate = new Date(e.due_date);
+        return !['completed', 'cancelled'].includes(e.status) && dueDate < new Date();
+      }).length,
+      total: mockEvaluations.length,
+      closureRate: Math.round((mockEvaluations.filter(e => e.status === 'completed').length / mockEvaluations.length) * 100),
+      pendingN2Validation: mockEvaluations.filter(e => e.status === 'pending_n2').length,
+      probationPending: mockEmployees.filter(e => !e.probation_evaluation_completed && new Date(e.probation_end_date) > new Date()).length,
+      probationCompleted: mockEvaluations.filter(e => e.evaluation_type === 'probation' && e.status === 'completed').length,
+    };
+    
+    setStats(mockStats);
+    setContractNotifications(mockNotifications.filter(n => n.type === 'contract_reminder_30d'));
+    setProbationEmployees(mockEmployees.filter(e => !e.probation_evaluation_completed));
+    
+    setLoading(false);
+  };
+
+  // Fonction pour basculer entre mode test et production
+  const toggleTestMode = () => {
+    setTestMode(!testMode);
+    if (!testMode) {
+      loadMockData();
+    } else {
+      fetchStats();
+      checkContractDeadlines();
+      checkProbationPeriods();
+    }
+    toast.success(`Mode ${!testMode ? 'test' : 'production'} activé`, {
+      duration: 2000,
+      position: 'top-right',
+    });
+  };
 
   // Fonction pour vérifier les échéances de contrat à J-30
   const checkContractDeadlines = async () => {
+    if (testMode) {
+      // En mode test, utiliser les mocks
+      const notificationsToSend = mockContracts.filter(contract => {
+        const endDate = new Date(contract.end_date);
+        const today = new Date();
+        const daysRemaining = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+        return daysRemaining <= 30 && daysRemaining > 0;
+      });
+      setContractNotifications(notificationsToSend);
+      return;
+    }
+
     try {
       const today = new Date();
       const thresholdDate = new Date();
@@ -105,6 +521,11 @@ export default function EvaluationModule() {
 
   // Fonction pour envoyer une notification de contrat
   const sendContractNotification = async (contract) => {
+    if (testMode) {
+      console.log('Mode test - Notification contrat simulée:', contract.id);
+      return;
+    }
+
     try {
       // Enregistrer la notification dans la base
       const { error: notifError } = await supabase
@@ -133,6 +554,12 @@ export default function EvaluationModule() {
 
   // Fonction pour vérifier les périodes d'essai
   const checkProbationPeriods = async () => {
+    if (testMode) {
+      // En mode test, utiliser les mocks
+      setProbationEmployees(mockEmployees.filter(e => !e.probation_evaluation_completed));
+      return;
+    }
+
     try {
       const today = new Date();
       const thirtyDaysFromNow = new Date();
@@ -173,6 +600,11 @@ export default function EvaluationModule() {
 
   // Fonction pour vérifier/envoyer notification période d'essai
   const checkProbationNotification = async (employee) => {
+    if (testMode) {
+      console.log('Mode test - Notification période d\'essai simulée:', employee.id);
+      return;
+    }
+
     try {
       const { data: existingNotification } = await supabase
         .from('notifications')
@@ -208,6 +640,22 @@ export default function EvaluationModule() {
 
   // Fonction pour vérifier les délais de traitement (48h)
   const checkProcessingDeadlines = async () => {
+    if (testMode) {
+      // En mode test, utiliser les mocks
+      const overdueEvaluations = mockEvaluations.filter(e => {
+        const lastChange = new Date(e.last_status_change);
+        const now = new Date();
+        const hoursDiff = (now - lastChange) / (1000 * 60 * 60);
+        return ['pending_n1', 'pending_n2'].includes(e.status) && hoursDiff > 48;
+      });
+      
+      toast.success(`${overdueEvaluations.length} évaluation(s) en retard de traitement (mode test)`, {
+        duration: 3000,
+        position: 'top-right',
+      });
+      return;
+    }
+
     try {
       const now = new Date();
       const deadlineThreshold = new Date(now.getTime() - 48 * 60 * 60 * 1000);
@@ -229,6 +677,8 @@ export default function EvaluationModule() {
       for (const evaluation of overdueEvaluations) {
         await sendReminderNotification(evaluation);
       }
+
+      toast.success(`${overdueEvaluations.length} rappel(s) envoyé(s)`);
     } catch (error) {
       console.error('Erreur vérification délais:', error);
     }
@@ -236,6 +686,11 @@ export default function EvaluationModule() {
 
   // Fonction pour envoyer un rappel
   const sendReminderNotification = async (evaluation) => {
+    if (testMode) {
+      console.log('Mode test - Rappel simulé pour évaluation:', evaluation.id);
+      return;
+    }
+
     const recipient = evaluation.status === 'pending_n1' 
       ? evaluation.manager 
       : evaluation.n2_manager;
@@ -258,6 +713,11 @@ export default function EvaluationModule() {
   };
 
   const fetchStats = async () => {
+    if (testMode) {
+      loadMockData();
+      return;
+    }
+
     setLoading(true);
     try {
       const now = new Date();
@@ -337,6 +797,18 @@ export default function EvaluationModule() {
 
   // Fonction pour gérer les actions de validation
   const handleValidationAction = async (evaluationId, action, level, comments = '') => {
+    if (testMode) {
+      // Mode test - simuler l'action
+      toast.success(`Action "${action}" simulée avec succès (mode test)`, {
+        duration: 2000,
+        position: 'top-right',
+      });
+      
+      // Mettre à jour les stats mockées
+      loadMockData();
+      return;
+    }
+
     try {
       const { data: evaluation, error: fetchError } = await supabase
         .from('evaluations')
@@ -426,8 +898,31 @@ export default function EvaluationModule() {
     return statusFlow[currentStatus] || currentStatus;
   };
 
-  // Fonction d'export (ajoutée pour corriger l'erreur)
+  // Fonction d'export
   const handleExport = async () => {
+    if (testMode) {
+      // Mode test - exporter les mocks
+      const dataToExport = mockEvaluations;
+      
+      // Créer le CSV avec les données mockées
+      const csvData = "data:text/csv;charset=utf-8," 
+        + ["ID,Employé,Type,Date d'échéance,Statut,Score"].join(",") + "\n"
+        + dataToExport.map(e => 
+          `${e.id},"${e.job_title}","${e.evaluation_type}",${new Date(e.due_date).toLocaleDateString('fr-FR')},${e.status},${e.final_score || 'N/A'}`
+        ).join("\n");
+
+      const encodedUri = encodeURI(csvData);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `evaluations_test_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Export test CSV généré avec succès');
+      return;
+    }
+
     try {
       const { data: evaluations, error } = await supabase
         .from('evaluations')
@@ -506,6 +1001,14 @@ export default function EvaluationModule() {
     setSelectedEmployee(employee);
     setShowEmployeeSelector(false);
     
+    if (testMode) {
+      // Mode test - utiliser les contrats mockés
+      const mockContract = mockContracts.find(c => c.employee_id === employee.id);
+      setSelectedEmployeeContract(mockContract || null);
+      setShowProbationForm(true);
+      return;
+    }
+    
     // Récupérer les informations contractuelles
     const { data: contract } = await supabase
       .from('employee_contracts')
@@ -528,6 +1031,17 @@ export default function EvaluationModule() {
 
   // Fonction pour sauvegarder l'évaluation de période d'essai
   const handleSaveProbationEvaluation = async (evaluationData) => {
+    if (testMode) {
+      // Mode test - simuler la sauvegarde
+      console.log('Mode test - Évaluation période d\'essai simulée:', evaluationData);
+      toast.success('Évaluation de période d\'essai simulée avec succès (mode test)');
+      setShowProbationForm(false);
+      setSelectedEmployee(null);
+      setSelectedEmployeeContract(null);
+      loadMockData();
+      return;
+    }
+
     try {
       // Créer l'évaluation de période d'essai
       const { data: evaluation, error } = await supabase
@@ -579,6 +1093,11 @@ export default function EvaluationModule() {
 
   // Fonction pour extraire les données contractuelles
   const extractEmployeeContractData = async (employeeId) => {
+    if (testMode) {
+      // Mode test - retourner un contrat mocké
+      return mockContracts.find(c => c.employee_id === employeeId) || null;
+    }
+
     try {
       const { data: contract, error } = await supabase
         .from('employee_contracts')
@@ -602,6 +1121,31 @@ export default function EvaluationModule() {
 
   return (
     <div className="space-y-8">
+      {/* Bannière Mode Test */}
+      {testMode && (
+        <div className="p-4 border bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-amber-900">Mode Test Activé</h4>
+                <p className="text-sm text-amber-700">
+                  Données de démonstration affichées ({mockEvaluations.length} évaluations, {mockEmployees.length} employés, {mockNotifications.length} notifications)
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={toggleTestMode}
+              className="px-4 py-2 text-sm font-medium bg-white border rounded-lg border-amber-300 text-amber-700 hover:bg-amber-50"
+            >
+              Mode Production
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* En-tête avec actions */}
       <div className="p-6 border shadow-sm bg-gradient-to-br from-white to-slate-50 border-slate-200/70 rounded-2xl">
         <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
@@ -630,6 +1174,16 @@ export default function EvaluationModule() {
           </div>
           
           <div className="flex flex-wrap gap-3">
+            {!testMode && (
+              <button
+                onClick={toggleTestMode}
+                className="px-4 py-2.5 bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 font-medium rounded-lg hover:from-amber-200 hover:to-orange-200 transition-all flex items-center space-x-2"
+              >
+                <Zap className="w-5 h-5" />
+                <span>Mode Test</span>
+              </button>
+            )}
+
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="px-4 py-2.5 bg-gradient-to-r from-slate-100 to-gray-100 text-slate-700 font-medium rounded-lg hover:from-slate-200 hover:to-gray-200 transition-all flex items-center space-x-2"
@@ -1093,7 +1647,7 @@ export default function EvaluationModule() {
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">Toutes les évaluations</h3>
                   <p className="text-sm text-slate-600">
-                    {stats.total} évaluations • {stats.closureRate}% taux de clôture • {stats.overdue} en retard
+                    {testMode ? '(Mode test) ' : ''}{stats.total} évaluations • {stats.closureRate}% taux de clôture • {stats.overdue} en retard
                   </p>
                 </div>
               </div>
@@ -1136,6 +1690,8 @@ export default function EvaluationModule() {
               filters={filters}
               onValidationAction={handleValidationAction}
               profile={profile}
+              testMode={testMode}
+              mockEvaluations={testMode ? mockEvaluations : undefined}
             />
           )}
         </div>
@@ -1148,6 +1704,8 @@ export default function EvaluationModule() {
           onSelect={handleEmployeeSelect}
           filterType="probation"
           title="Sélectionner un employé pour l'évaluation de période d'essai"
+          testMode={testMode}
+          mockEmployees={testMode ? mockEmployees : undefined}
         />
       )}
 
@@ -1161,6 +1719,8 @@ export default function EvaluationModule() {
             toast.success('Nouvelle évaluation créée avec succès');
           }}
           extractEmployeeData={extractEmployeeContractData}
+          testMode={testMode}
+          mockEmployees={testMode ? mockEmployees : undefined}
         />
       )}
 
@@ -1175,6 +1735,7 @@ export default function EvaluationModule() {
             setSelectedEmployeeContract(null);
           }}
           onSave={handleSaveProbationEvaluation}
+          testMode={testMode}
         />
       )}
     </div>

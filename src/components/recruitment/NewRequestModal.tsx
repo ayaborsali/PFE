@@ -5,7 +5,9 @@ import {
   X, Briefcase, Building, Users, DollarSign, Calendar, 
   FileText, Target, Zap, AlertCircle, CheckCircle, 
   TrendingUp, Globe, Shield, Clock, Award, Sparkles,
-  ChevronDown, Search, MapPin
+  ChevronDown, Search, MapPin, UserPlus, UserMinus,
+  RefreshCw, TrendingUp as Growth, FolderPlus,
+  AlertTriangle, Info
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,6 +16,17 @@ import toast from 'react-hot-toast';
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
+}
+
+// Types améliorés pour la cause de recrutement
+interface RecruitmentCauseDetail {
+  mainReason: string;
+  subReason?: string;
+  description: string;
+  impact?: string;
+  urgencyLevel: 'low' | 'medium' | 'high' | 'critical';
+  relatedPosition?: string;
+  documents?: File[];
 }
 
 // Listes statiques des postes
@@ -65,7 +78,7 @@ const jobTitlesList = [
   'Directeur Commercial',
   'Business Developer',
   'Account Manager',
-  'Chargé d\'Affaires',
+  "Chargé d'Affaires",
   
   // Direction & Administration
   'Assistant de Direction',
@@ -75,7 +88,7 @@ const jobTitlesList = [
   
   // Production & Logistique
   'Ingénieur Production',
-  'Chef d\'équipe',
+  "Chef d'équipe",
   'Responsable Logistique',
   'Magasinier',
   'Supply Chain Manager',
@@ -146,15 +159,133 @@ const locationsList = [
 ].sort();
 
 const contractTypes = ['CDI', 'CDD', 'Stage', 'Alternance', 'Freelance', 'Intérim'];
-const recruitmentReasons = [
-  'Création de poste', 
-  'Remplacement', 
-  'Renforcement équipe', 
-  'Nouveau projet', 
-  'Départ', 
-  'Augmentation activité',
-  'Spécialisation'
-];
+
+// Structure améliorée des causes de recrutement
+const recruitmentReasons = {
+  'Création de poste': {
+    icon: FolderPlus,
+    color: 'emerald',
+    description: 'Nouveau poste lié à une expansion ou une nouvelle activité',
+    subReasons: [
+      'Nouveau projet/département',
+      'Expansion de léquipe',
+      'Nouvelle activité',
+      'Diversification',
+      'Innovation/R&D',
+      'Digitalisation'
+    ],
+    questions: [
+      'Quel est le nouveau projet/activité ?'
+         
+    ]
+  },
+  'Remplacement': {
+    icon: RefreshCw,
+    color: 'amber',
+    description: 'Remplacement d\'un collaborateur existant',
+    subReasons: [
+      'Démission',
+      'Départ à la retraite',
+      'Mutation interne',
+      'Promotion',
+      'Fin de contrat',
+      'Congé longue durée',
+      'Décès'
+    ],
+    questions: [
+      'Qui est remplacé ?',
+      'Quelle est la raison exacte du départ ?',
+      'Y a-t-il une période de passation prévue ?'
+    ]
+  },
+  'Renforcement équipe': {
+    icon: Users,
+    color: 'blue',
+    description: 'Augmentation de la charge de travail nécessitant des ressources supplémentaires',
+    subReasons: [
+      'Croissance activité',
+      'Nouveaux clients',
+      'Surcharge temporaire',
+      'Projet spécifique',
+      'Saisonnalité',
+      'Pic d\'activité'
+    ],
+    questions: [
+      'Quelle est l\'augmentation de charge constatée ?',
+      'Quels sont les indicateurs de cette croissance ?',
+      'Est-ce une tendance durable ?'
+    ]
+  },
+  'Nouveau projet': {
+    icon: Target,
+    color: 'violet',
+    description: 'Lancement d\'un nouveau projet nécessitant des compétences spécifiques',
+    subReasons: [
+      'Projet stratégique',
+      'Transformation digitale',
+      'Innovation produit',
+      'Expansion géographique',
+      'Nouveau marché',
+      'R&D'
+    ],
+    questions: [
+      'Quelle est la durée du projet ?',
+      'Quelles sont les compétences spécifiques requises ?',
+      'Quel est le budget projet associé ?'
+    ]
+  },
+  'Départ': {
+    icon: UserMinus,
+    color: 'red',
+    description: 'Départ non prévu nécessitant un remplacement rapide',
+    subReasons: [
+      'Démission imprévue',
+      'Départ urgent',
+      'Absence longue durée',
+      'Licenciement',
+      'Fin de période d\'essai'
+    ],
+    questions: [
+      'Quelle est l\'urgence du remplacement ?',
+      'Y a-t-il des dossiers critiques en attente ?',
+      'Quel est le délai idéal pour le remplacement ?'
+    ]
+  },
+  'Augmentation activité': {
+    icon: Growth,
+    color: 'green',
+    description: 'Croissance soutenue de l\'activité nécessitant des renforts',
+    subReasons: [
+      'Croissance organique',
+      'Nouveaux marchés',
+      'Gain de parts de marché',
+      'Développement commercial',
+      'Nouveaux produits/services'
+    ],
+    questions: [
+      'Quel est le taux de croissance ?',
+      'Quels sont les objectifs à atteindre ?',
+      'Y a-t-il des KPI spécifiques à respecter ?'
+    ]
+  },
+  'Spécialisation': {
+    icon: Award,
+    color: 'purple',
+    description: 'Besoin d\'une expertise spécifique non disponible en interne',
+    subReasons: [
+      'Nouvelle technologie',
+      'Expertise rare',
+      'Compétence stratégique',
+      'Certification requise',
+      'Veille technologique'
+    ],
+    questions: [
+      'Quelle est l\'expertise recherchée ?',
+      'Pourquoi cette compétence n\'est-elle pas disponible en interne ?',
+      'Y a-t-il des formations prévues pour l\'équipe ?'
+    ]
+  }
+};
 
 const skillSuggestions = [
   'React', 'Node.js', 'TypeScript', 'Python', 'Java',
@@ -168,10 +299,151 @@ const skillSuggestions = [
 const levelOptions = ['Stagiaire', 'Junior', 'Confirmé', 'Senior', 'Expert', 'Lead'];
 const experienceOptions = ['0-1 an', '1-3 ans', '3-5 ans', '5-8 ans', '8+ ans'];
 
+// Composant pour le détail de la cause de recrutement
+function RecruitmentCauseDetails({ 
+  reason, 
+  onDataChange,
+  errors
+}: { 
+  reason: string; 
+  onDataChange: (data: any) => void;
+  errors: Record<string, string>;
+}) {
+  const [details, setDetails] = useState<RecruitmentCauseDetail>({
+    mainReason: reason,
+    subReason: '',
+    description: '',
+    urgencyLevel: 'medium'
+  });
+
+  const reasonConfig = recruitmentReasons[reason as keyof typeof recruitmentReasons];
+
+  useEffect(() => {
+    onDataChange(details);
+  }, [details]);
+
+  if (!reasonConfig) return null;
+
+  const Icon = reasonConfig.icon;
+
+  const handleChange = (field: keyof RecruitmentCauseDetail, value: any) => {
+    setDetails(prev => ({ ...prev, [field]: value }));
+  };
+
+  const urgencyLevels = [
+    { value: 'low', label: 'Basse', color: 'green', description: 'Pas d\'urgence particulière' },
+    { value: 'medium', label: 'Moyenne', color: 'yellow', description: 'À traiter dans les semaines à venir' },
+    { value: 'high', label: 'Haute', color: 'orange', description: 'À traiter rapidement' },
+    { value: 'critical', label: 'Critique', color: 'red', description: 'Urgence absolue' }
+  ];
+
+  return (
+    <div className="mt-6 space-y-6">
+      {/* En-tête avec couleur dynamique */}
+      <div className={`p-4 rounded-xl bg-${reasonConfig.color}-50 border border-${reasonConfig.color}-200`}>
+        <div className="flex items-start space-x-4">
+          <div className={`p-3 rounded-lg bg-${reasonConfig.color}-100`}>
+            <Icon className={`w-6 h-6 text-${reasonConfig.color}-600`} />
+          </div>
+          <div className="flex-1">
+            <h4 className={`text-lg font-semibold text-${reasonConfig.color}-900`}>
+              {reason}
+            </h4>
+            <p className={`text-sm text-${reasonConfig.color}-700`}>
+              {reasonConfig.description}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Sous-motif */}
+        <div>
+          <label className="block mb-2 text-sm font-medium text-slate-700">
+            type <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={details.subReason}
+            onChange={(e) => handleChange('subReason', e.target.value)}
+            className={`w-full px-4 py-3 border rounded-lg ${
+              errors.subReason ? 'border-red-300' : 'border-slate-300/70'
+            }`}
+          >
+            <option value="">Sélectionnez un type</option>
+            {reasonConfig.subReasons.map(sub => (
+              <option key={sub} value={sub}>{sub}</option>
+            ))}
+          </select>
+          {errors.subReason && (
+            <p className="mt-1 text-sm text-red-600">{errors.subReason}</p>
+          )}
+        </div>
+
+        
+        
+      </div>
+
+      {/* Questions contextuelles */}
+      <div className="p-4 rounded-lg bg-slate-50">
+        <div className="flex items-center mb-3 space-x-2">
+          <Info className="w-4 h-4 text-slate-600" />
+          <span className="text-sm font-medium text-slate-700">
+            Questions pour mieux comprendre votre besoin
+          </span>
+        </div>
+        <div className="space-y-4">
+          {reasonConfig.questions.map((question, index) => (
+            <div key={index}>
+              <label className="block mb-2 text-sm text-slate-600">
+                {question}
+              </label>
+              <input
+                type="text"
+                value={details[`answer${index}`] || ''}
+                onChange={(e) => handleChange(`answer${index}` as any, e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg border-slate-300/70"
+                placeholder="Votre réponse..."
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Description détaillée */}
+      <div>
+        <label className="block mb-2 text-sm font-medium text-slate-700">
+          Description détaillée du besoin <span className="text-red-500">*</span>
+        </label>
+        <textarea
+          value={details.description}
+          onChange={(e) => handleChange('description', e.target.value)}
+          rows={4}
+          className={`w-full px-4 py-3 border rounded-lg ${
+            errors.description ? 'border-red-300' : 'border-slate-300/70'
+          }`}
+          placeholder="Expliquez en détail le contexte, les enjeux, et les attentes spécifiques liées à cette demande..."
+        />
+        {errors.description && (
+          <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+        )}
+      </div>
+
+
+ 
+      {/* Poste lié (pour remplacement/mutation) */}
+      {(reason === 'Remplacement' || reason === 'Départ') }
+
+     
+      
+    </div>
+  );
+}
+
 export default function NewRequestModal({ onClose, onSuccess }: Props) {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [recruitmentDetails, setRecruitmentDetails] = useState<any>(null);
   
   // États pour les recherches
   const [searchJob, setSearchJob] = useState('');
@@ -249,9 +521,18 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
     if (!formData.description.trim()) {
       newErrors.description = 'La description est requise';
     }
-    
-    if (formData.reason === 'Remplacement' && !formData.replacementName.trim()) {
-      newErrors.replacementName = 'Le nom de la personne remplacée est requis';
+
+    // Validation des détails de la cause
+    if (recruitmentDetails) {
+      if (!recruitmentDetails.subReason) {
+        newErrors.subReason = 'Le type est requis';
+      }
+      if (!recruitmentDetails.description) {
+        newErrors.description = 'La description détaillée est requise';
+      }
+      if ((formData.reason === 'Remplacement' || formData.reason === 'Départ') && !recruitmentDetails.relatedPosition) {
+        newErrors.relatedPosition = 'Le poste/personne concerné est requis';
+      }
     }
     
     setErrors(newErrors);
@@ -269,16 +550,18 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('recruitment_requests').insert({
+      // Construction de l'objet de demande avec les détails enrichis
+      const requestData = {
         title: formData.title,
         department: formData.department,
         location: formData.location,
         contract_type: formData.contractType,
         reason: formData.reason,
+        reason_details: recruitmentDetails, // Ajout des détails enrichis
         budget: formData.budget ? parseInt(formData.budget) : null,
         required_skills: formData.requiredSkills.split(',').map(s => s.trim()).filter(s => s),
         description: formData.description,
-        urgent: formData.urgent,
+        urgent: formData.urgent || (recruitmentDetails?.urgencyLevel === 'high' || recruitmentDetails?.urgencyLevel === 'critical'),
         status: 'Open',
         current_validation_level: 'Manager',
         created_by: profile?.id,
@@ -291,8 +574,11 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
         experience: formData.experience,
         remote_work: formData.remote,
         travel_required: formData.travelRequired,
-        estimated_time: formData.urgent ? '15 jours' : '30 jours'
-      });
+        estimated_time: (formData.urgent || recruitmentDetails?.urgencyLevel === 'high' || recruitmentDetails?.urgencyLevel === 'critical') ? '15 jours' : '30 jours',
+        priority: recruitmentDetails?.urgencyLevel || (formData.urgent ? 'high' : 'medium')
+      };
+
+      const { error } = await supabase.from('recruitment_requests').insert(requestData);
 
       if (error) throw error;
       
@@ -729,6 +1015,76 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
               </div>
             </div>
 
+            {/* SECTION AMÉLIORÉE : Cause de recrutement */}
+            <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
+              <div className="flex items-center mb-4 space-x-3">
+                <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl">
+                  <Users className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <label className="block text-lg font-semibold text-slate-900">Cause de recrutement</label>
+                  <p className="text-sm text-slate-600">Contexte et justification détaillée</p>
+                </div>
+              </div>
+              
+              <select
+                value={formData.reason}
+                onChange={(e) => handleChange('reason', e.target.value)}
+                className="w-full px-4 py-3 mb-4 border rounded-lg bg-slate-50/50 border-slate-300/70"
+              >
+                {Object.keys(recruitmentReasons).map(reason => {
+                  const Icon = recruitmentReasons[reason as keyof typeof recruitmentReasons].icon;
+                  return (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {/* Détails améliorés de la cause */}
+              <RecruitmentCauseDetails
+                reason={formData.reason}
+                onDataChange={setRecruitmentDetails}
+                errors={errors}
+              />
+
+              {/* Affichage conditionnel pour l'ancien système (conservé pour compatibilité) */}
+              {formData.reason === 'Remplacement' && (
+                <div className="p-4 mt-4 space-y-4 border bg-gradient-to-br from-amber-50/50 to-orange-50/50 border-amber-200/50 rounded-xl">
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-amber-800">
+                      Nom de la personne remplacée
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.replacementName}
+                      onChange={(e) => handleChange('replacementName', e.target.value)}
+                      className={`w-full px-4 py-3 bg-white border ${
+                        errors.replacementName ? 'border-red-300' : 'border-amber-300'
+                      } rounded-lg`}
+                      placeholder="Nom et prénom"
+                    />
+                    {errors.replacementName && (
+                      <p className="mt-2 text-sm text-red-600">{errors.replacementName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-amber-800">
+                      Raison du remplacement
+                    </label>
+                    <textarea
+                      value={formData.replacementReason}
+                      onChange={(e) => handleChange('replacementReason', e.target.value)}
+                      className="w-full px-4 py-3 bg-white border rounded-lg border-amber-300"
+                      rows={2}
+                      placeholder="Départ, mutation, promotion, arrêt maladie..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Troisième ligne : Description détaillée */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
@@ -759,130 +1115,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                 <div className="mt-3 text-sm text-slate-500">
                   <p>💡 Conseils : Soyez précis sur les missions quotidiennes, les résultats attendus, et les compétences techniques requises.</p>
                 </div>
-              </div>
-
-              {/* Motif de recrutement */}
-              <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
-                <div className="flex items-center mb-4 space-x-3">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl">
-                    <Users className="w-6 h-6 text-amber-600" />
-                  </div>
-                  <div>
-                    <label className="block text-lg font-semibold text-slate-900">Motif de recrutement</label>
-                    <p className="text-sm text-slate-600">Contexte et justification</p>
-                  </div>
-                </div>
-                <select
-                  value={formData.reason}
-                  onChange={(e) => handleChange('reason', e.target.value)}
-                  className="w-full px-4 py-3 mb-4 border rounded-lg bg-slate-50/50 border-slate-300/70"
-                >
-                  {recruitmentReasons.map(reason => (
-                    <option key={reason} value={reason}>{reason}</option>
-                  ))}
-                </select>
-
-                {/* Champs conditionnels pour remplacement */}
-                {formData.reason === 'Remplacement' && (
-                  <div className="p-4 mt-4 space-y-4 border bg-gradient-to-br from-amber-50/50 to-orange-50/50 border-amber-200/50 rounded-xl">
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-amber-800">
-                        Nom de la personne remplacée
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.replacementName}
-                        onChange={(e) => handleChange('replacementName', e.target.value)}
-                        className={`w-full px-4 py-3 bg-white border ${
-                          errors.replacementName ? 'border-red-300' : 'border-amber-300'
-                        } rounded-lg`}
-                        placeholder="Nom et prénom"
-                      />
-                      {errors.replacementName && (
-                        <p className="mt-2 text-sm text-red-600">{errors.replacementName}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block mb-2 text-sm font-medium text-amber-800">
-                        Raison du remplacement
-                      </label>
-                      <textarea
-                        value={formData.replacementReason}
-                        onChange={(e) => handleChange('replacementReason', e.target.value)}
-                        className="w-full px-4 py-3 bg-white border rounded-lg border-amber-300"
-                        rows={2}
-                        placeholder="Départ, mutation, promotion, arrêt maladie..."
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Quatrième ligne : Compétences requises */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
-                <div className="flex items-center mb-4 space-x-3">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
-                    <TrendingUp className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <label className="block text-lg font-semibold text-slate-900">Compétences requises</label>
-                    <p className="text-sm text-slate-600">Techniques et comportementales</p>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {skillSuggestions.map(skill => (
-                      <button
-                        key={skill}
-                        type="button"
-                        onClick={() => addSkill(skill)}
-                        className="px-3 py-2 text-sm transition-colors rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
-                      >
-                        {skill}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  <textarea
-                    value={formData.requiredSkills}
-                    onChange={(e) => handleChange('requiredSkills', e.target.value)}
-                    className="w-full px-4 py-3 border rounded-lg resize-none bg-slate-50/50 border-slate-300/70"
-                    rows={4}
-                    placeholder="Listez les compétences techniques et soft skills, séparées par des virgules..."
-                  />
-                </div>
-
-                {/* Liste des compétences sélectionnées */}
-                {formData.requiredSkills && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-slate-700">Compétences ajoutées :</span>
-                      <span className="text-sm text-slate-500">
-                        {formData.requiredSkills.split(',').filter(s => s.trim()).length} compétences
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.requiredSkills.split(',').filter(skill => skill.trim()).map((skill, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center px-3 py-2 space-x-1 border border-blue-200 rounded-lg group bg-gradient-to-r from-blue-50 to-cyan-50"
-                        >
-                          <span className="text-sm text-blue-700">{skill.trim()}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeSkill(skill.trim())}
-                            className="text-blue-500 transition-colors hover:text-red-500"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Budget et urgence */}
@@ -937,6 +1169,71 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Quatrième ligne : Compétences requises */}
+            <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
+              <div className="flex items-center mb-4 space-x-3">
+                <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
+                  <TrendingUp className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <label className="block text-lg font-semibold text-slate-900">Compétences requises</label>
+                  <p className="text-sm text-slate-600">Techniques et comportementales</p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {skillSuggestions.map(skill => (
+                    <button
+                      key={skill}
+                      type="button"
+                      onClick={() => addSkill(skill)}
+                      className="px-3 py-2 text-sm transition-colors rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
+                    >
+                      {skill}
+                    </button>
+                  ))}
+                </div>
+                
+                <textarea
+                  value={formData.requiredSkills}
+                  onChange={(e) => handleChange('requiredSkills', e.target.value)}
+                  className="w-full px-4 py-3 border rounded-lg resize-none bg-slate-50/50 border-slate-300/70"
+                  rows={4}
+                  placeholder="Listez les compétences techniques et soft skills, séparées par des virgules..."
+                />
+              </div>
+
+              {/* Liste des compétences sélectionnées */}
+              {formData.requiredSkills && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-slate-700">Compétences ajoutées :</span>
+                    <span className="text-sm text-slate-500">
+                      {formData.requiredSkills.split(',').filter(s => s.trim()).length} compétences
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.requiredSkills.split(',').filter(skill => skill.trim()).map((skill, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center px-3 py-2 space-x-1 border border-blue-200 rounded-lg group bg-gradient-to-r from-blue-50 to-cyan-50"
+                      >
+                        <span className="text-sm text-blue-700">{skill.trim()}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSkill(skill.trim())}
+                          className="text-blue-500 transition-colors hover:text-red-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Circuit de validation */}

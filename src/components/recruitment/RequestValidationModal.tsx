@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { 
   X, CheckCircle, XCircle, Edit2, MessageSquare, 
   Clock, User, Building, FileText, Target,
-  AlertCircle, Send, History, ChevronRight,
-  Shield, Award, DollarSign, Users
+  AlertCircle, Send, History, Shield, Award, DollarSign, Users
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -31,6 +30,7 @@ interface Request {
   experience: string;
   remote_work: boolean;
   estimated_time: string;
+  validation_history?: any[];
 }
 
 interface Props {
@@ -54,9 +54,9 @@ export default function RequestValidationModal({ request, onClose, onSuccess }: 
 
   const validationFlow = [
     { level: 'Manager', color: 'bg-emerald-500', icon: Users, completed: true },
-    { level: 'Directeur', color: 'bg-blue-500', icon: Building, completed: request.current_validation_level === 'Directeur' || request.current_validation_level === 'DRH' || request.current_validation_level === 'DAF' || request.current_validation_level === 'DGA/DG' },
-    { level: 'DRH', color: 'bg-violet-500', icon: Shield, completed: request.current_validation_level === 'DRH' || request.current_validation_level === 'DAF' || request.current_validation_level === 'DGA/DG' },
-    { level: 'DAF', color: 'bg-amber-500', icon: DollarSign, completed: request.current_validation_level === 'DAF' || request.current_validation_level === 'DGA/DG' },
+    { level: 'Directeur', color: 'bg-blue-500', icon: Building, completed: ['Directeur', 'DRH', 'DAF', 'DGA/DG'].includes(request.current_validation_level) },
+    { level: 'DRH', color: 'bg-violet-500', icon: Shield, completed: ['DRH', 'DAF', 'DGA/DG'].includes(request.current_validation_level) },
+    { level: 'DAF', color: 'bg-amber-500', icon: DollarSign, completed: ['DAF', 'DGA/DG'].includes(request.current_validation_level) },
     { level: 'DGA/DG', color: 'bg-purple-500', icon: Award, completed: request.current_validation_level === 'DGA/DG' },
   ];
 
@@ -117,14 +117,13 @@ export default function RequestValidationModal({ request, onClose, onSuccess }: 
             ? 'Demande validée avec succès !' 
             : 'Demande validée au niveau actuel'
           : 'Demande refusée',
-        {
-          duration: 4000,
-          position: 'top-right',
-        }
+        { duration: 4000, position: 'top-right' }
       );
 
+      setAction(null);
+      setComment('');
+      setIsEditing(false);
       onSuccess();
-      onClose();
     } catch (error) {
       console.error('Error updating request:', error);
       toast.error('Erreur lors du traitement de la demande');
@@ -159,11 +158,7 @@ export default function RequestValidationModal({ request, onClose, onSuccess }: 
 
       if (error) throw error;
 
-      toast.success('Modifications enregistrées', {
-        duration: 3000,
-        position: 'top-right',
-      });
-
+      toast.success('Modifications enregistrées', { duration: 3000, position: 'top-right' });
       setIsEditing(false);
       onSuccess();
     } catch (error) {
@@ -177,52 +172,38 @@ export default function RequestValidationModal({ request, onClose, onSuccess }: 
   const canEdit = ['rh', 'daf', 'directeur'].includes(profile?.role?.toLowerCase() || '');
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden border border-white/30 my-8">
-        {/* En-tête */}
-        <div className="sticky top-0 z-20 bg-gradient-to-r from-white/95 to-white/90 backdrop-blur-xl border-b border-slate-200/50 px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className={`p-4 rounded-2xl shadow-xl ${
-                  request.urgent 
-                    ? 'bg-gradient-to-br from-red-500 to-orange-500' 
-                    : 'bg-gradient-to-br from-blue-500 to-cyan-500'
-                }`}>
-                  <Shield className="w-8 h-8 text-white" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-white to-slate-100 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                  Validation de demande
-                </h3>
-                <p className="text-slate-600 mt-1">
-                  Niveau actuel : <span className="font-semibold text-emerald-700">{request.current_validation_level}</span>
-                </p>
-              </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-white/30">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-white/90 to-white/80 backdrop-blur-lg border-slate-200/50">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl">
+              <Target className="w-6 h-6 text-white" />
             </div>
-            
-            <button 
-              onClick={onClose}
-              className="p-3 hover:bg-slate-100 rounded-xl transition-all duration-200 hover:scale-105 group"
-            >
-              <X className="w-5 h-5 text-slate-600 group-hover:text-slate-900 transition-colors" />
-            </button>
+            <div>
+              <h3 className="text-xl font-bold text-slate-900">Validation de demande</h3>
+              <p className="text-sm text-slate-600">
+                Niveau actuel: {request.current_validation_level}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-100 rounded-xl"
+          >
+            <X className="w-5 h-5 text-slate-600" />
+          </button>
+        </div>
 
-          {/* Circuit de validation */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+          <div className="space-y-6">
+            {/* Circuit de validation */}
+            <div className="flex items-center justify-between mb-6">
               {validationFlow.map((item, index) => {
                 const Icon = item.icon;
                 const isCurrent = item.level === request.current_validation_level;
-                
                 return (
-                  <div key={item.level} className="flex flex-col items-center relative">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
+                  <div key={item.level} className="relative flex flex-col items-center">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
                       item.completed
                         ? item.color
                         : isCurrent
@@ -245,392 +226,248 @@ export default function RequestValidationModal({ request, onClose, onSuccess }: 
                 );
               })}
             </div>
-          </div>
-        </div>
 
-        <div className="p-8 overflow-y-auto max-h-[calc(95vh-180px)]">
-          {/* Informations de la demande */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Colonne gauche - Détails */}
-            <div className="space-y-6">
-              <div className="bg-white border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl flex items-center justify-center">
-                      <Target className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900">Poste à pourvoir</h4>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editableData.title}
-                          onChange={(e) => setEditableData(prev => ({ ...prev, title: e.target.value }))}
-                          className="mt-1 w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
-                        />
-                      ) : (
-                        <p className="text-lg font-bold text-slate-900">{request.title}</p>
-                      )}
-                    </div>
-                  </div>
-                  {request.urgent && (
-                    <div className="px-3 py-1 bg-gradient-to-r from-red-100 to-orange-100 text-red-700 rounded-full text-sm font-medium">
-                      URGENT
-                    </div>
+            {/* Informations principales */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="space-y-4">
+                <div className="p-5 bg-white border border-slate-200/70 rounded-xl">
+                  <h4 className="flex items-center mb-3 space-x-2 font-semibold text-slate-900">
+                    <Target className="w-5 h-5 text-blue-500" />
+                    <span>Poste</span>
+                  </h4>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editableData.title}
+                      onChange={(e) => setEditableData(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  ) : (
+                    <p className="font-bold text-slate-900">{request.title}</p>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-slate-600 mb-1">Département</label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editableData.department}
-                        onChange={(e) => setEditableData(prev => ({ ...prev, department: e.target.value }))}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
-                      />
-                    ) : (
-                      <p className="font-medium text-slate-900">{request.department}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-600 mb-1">Localisation</label>
-                    <p className="font-medium text-slate-900">{request.location}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-600 mb-1">Type de contrat</label>
-                    <p className="font-medium text-slate-900">{request.contract_type}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-600 mb-1">Niveau</label>
-                    <p className="font-medium text-slate-900">{request.level} • {request.experience}</p>
-                  </div>
+                <div className="p-5 bg-white border border-slate-200/70 rounded-xl">
+                  <h4 className="flex items-center mb-3 space-x-2 font-semibold text-slate-900">
+                    <Building className="w-5 h-5 text-emerald-500" />
+                    <span>Département</span>
+                  </h4>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editableData.department}
+                      onChange={(e) => setEditableData(prev => ({ ...prev, department: e.target.value }))}
+                      className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  ) : (
+                    <p className="font-medium text-slate-900">{request.department}</p>
+                  )}
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl flex items-center justify-center">
-                    <DollarSign className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900">Budget et conditions</h4>
-                    <p className="text-sm text-slate-600">Éléments financiers et contractuels</p>
-                  </div>
+              <div className="space-y-4">
+                <div className="p-5 bg-white border border-slate-200/70 rounded-xl">
+                  <h4 className="flex items-center mb-3 space-x-2 font-semibold text-slate-900">
+                    <DollarSign className="w-5 h-5 text-amber-500" />
+                    <span>Budget</span>
+                  </h4>
+                  {isEditing ? (
+                    <input
+                      type="number"
+                      value={editableData.budget}
+                      onChange={(e) => setEditableData(prev => ({ ...prev, budget: parseInt(e.target.value) }))}
+                      className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  ) : (
+                    <p className="font-bold text-slate-900">{request.budget?.toLocaleString()} €</p>
+                  )}
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-slate-600 mb-1">Budget annuel estimé</label>
-                    {isEditing ? (
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          value={editableData.budget}
-                          onChange={(e) => setEditableData(prev => ({ ...prev, budget: parseInt(e.target.value) }))}
-                          className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
-                        />
-                        <span className="text-slate-700">€</span>
-                      </div>
-                    ) : (
-                      <p className="text-2xl font-bold text-slate-900">{request.budget?.toLocaleString()} €</p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-1">
-                      <label className="block text-sm text-slate-600 mb-1">Télétravail</label>
-                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        request.remote_work 
-                          ? 'bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700' 
-                          : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {request.remote_work ? 'OUI' : 'NON'}
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-sm text-slate-600 mb-1">Délai estimé</label>
-                      <p className="font-medium text-slate-900">{request.estimated_time}</p>
-                    </div>
-                  </div>
+                <div className="p-5 bg-white border border-slate-200/70 rounded-xl">
+                  <h4 className="flex items-center mb-3 space-x-2 font-semibold text-slate-900">
+                    <MapPin className="w-5 h-5 text-violet-500" />
+                    <span>Localisation</span>
+                  </h4>
+                  <p className="font-medium text-slate-900">{request.location}</p>
                 </div>
               </div>
             </div>
 
-            {/* Colonne droite - Description et compétences */}
-            <div className="space-y-6">
-              <div className="bg-white border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-violet-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900">Description du poste</h4>
-                      <p className="text-sm text-slate-600">Missions et responsabilités</p>
-                    </div>
-                  </div>
-                  {canEdit && !isEditing && (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="flex items-center space-x-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      <span>Modifier</span>
-                    </button>
-                  )}
-                </div>
+            {/* Description */}
+            <div className="p-5 bg-white border border-slate-200/70 rounded-xl">
+              <h4 className="flex items-center mb-3 space-x-2 font-semibold text-slate-900">
+                <FileText className="w-5 h-5 text-indigo-500" />
+                <span>Description</span>
+              </h4>
+              {isEditing ? (
+                <textarea
+                  value={editableData.description}
+                  onChange={(e) => setEditableData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={6}
+                  className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              ) : (
+                <p className="whitespace-pre-line text-slate-700">{request.description}</p>
+              )}
+            </div>
 
-                {isEditing ? (
-                  <textarea
-                    value={editableData.description}
-                    onChange={(e) => setEditableData(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-lg resize-none min-h-[200px]"
-                  />
-                ) : (
-                  <p className="text-slate-700 whitespace-pre-line">{request.description}</p>
-                )}
-              </div>
-
-              <div className="bg-white border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl flex items-center justify-center">
-                    <Target className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900">Compétences requises</h4>
-                    <p className="text-sm text-slate-600">Techniques et comportementales</p>
-                  </div>
-                </div>
-
+            {/* Compétences */}
+            {request.required_skills && request.required_skills.length > 0 && (
+              <div className="p-5 bg-white border border-slate-200/70 rounded-xl">
+                <h4 className="flex items-center mb-3 space-x-2 font-semibold text-slate-900">
+                  <Award className="w-5 h-5 text-purple-500" />
+                  <span>Compétences requises</span>
+                </h4>
                 <div className="flex flex-wrap gap-2">
-                  {request.required_skills?.map((skill, index) => (
+                  {request.required_skills.map((skill, index) => (
                     <span
                       key={index}
-                      className="px-3 py-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-700 rounded-lg text-sm"
+                      className="px-3 py-2 text-sm text-blue-700 border border-blue-200 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50"
                     >
                       {skill}
                     </span>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Informations du demandeur */}
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200/70 rounded-2xl p-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center">
-                    <User className="w-5 h-5 text-slate-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900">Demandeur</h4>
-                    <p className="text-sm text-slate-600">Initiateur de la demande</p>
-                  </div>
+            {/* Actions de validation */}
+            {!isEditing ? (
+              <>
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => setAction('validate')}
+                    className="flex items-center justify-center flex-1 px-6 py-3 space-x-2 font-medium text-white transition-all bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600"
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    <span>Valider</span>
+                  </button>
+                  <button
+                    onClick={() => setAction('reject')}
+                    className="flex items-center justify-center flex-1 px-6 py-3 space-x-2 font-medium text-white transition-all bg-gradient-to-r from-red-500 to-orange-500 rounded-xl hover:from-red-600 hover:to-orange-600"
+                  >
+                    <XCircle className="w-5 h-5" />
+                    <span>Refuser</span>
+                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="flex items-center justify-center px-6 py-3 space-x-2 font-medium transition-all text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 rounded-xl hover:from-slate-200 hover:to-slate-300"
+                    >
+                      <Edit2 className="w-5 h-5" />
+                      <span>Modifier</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm text-slate-600 mb-1">Nom</label>
-                    <p className="font-medium text-slate-900">{request.created_by_name}</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-1">
-                      <label className="block text-sm text-slate-600 mb-1">Rôle</label>
-                      <p className="font-medium text-slate-900">{request.created_by_role}</p>
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-sm text-slate-600 mb-1">Date</label>
-                      <p className="font-medium text-slate-900">
-                        {new Date(request.created_at).toLocaleDateString('fr-FR')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Zone d'action */}
-          <div className="bg-gradient-to-br from-emerald-50/50 to-teal-50/50 border border-emerald-200/50 rounded-2xl p-6 mb-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div>
-                <h4 className="text-xl font-semibold text-emerald-900">Action de validation</h4>
-                <p className="text-emerald-700">
-                  En tant que {profile?.role}, vous pouvez {getNextLevel() ? 'valider pour le prochain niveau' : 'donner la validation finale'}
-                </p>
-              </div>
-            </div>
-
-            {/* Commentaire */}
-            <div className="mb-6">
-              <label className="flex items-center space-x-2 text-sm font-medium text-slate-700 mb-3">
-                <MessageSquare className="w-4 h-4" />
-                <span>Commentaire (optionnel)</span>
-              </label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg resize-none"
-                rows={3}
-                placeholder="Ajoutez un commentaire pour justifier votre décision..."
-              />
-            </div>
-
-            {/* Boutons d'action */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setAction('validate')}
-                  disabled={loading || isEditing}
-                  className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-medium transition-all ${
-                    action === 'validate'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30'
-                      : 'bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 hover:from-emerald-200 hover:to-teal-200'
-                  } ${loading || isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <CheckCircle className="w-5 h-5" />
-                  <span>
-                    {getNextLevel() 
-                      ? `Valider pour ${getNextLevel()?.level}` 
-                      : 'Validation finale'}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => setAction('reject')}
-                  disabled={loading || isEditing}
-                  className={`flex items-center space-x-3 px-6 py-3 rounded-xl font-medium transition-all ${
-                    action === 'reject'
-                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
-                      : 'bg-gradient-to-r from-red-100 to-orange-100 text-red-700 hover:from-red-200 hover:to-orange-200'
-                  } ${loading || isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <XCircle className="w-5 h-5" />
-                  <span>Refuser la demande</span>
-                </button>
-              </div>
-
-              <div className="flex items-center space-x-4">
-                {isEditing && canEdit && (
-                  <button
-                    onClick={handleSaveEdit}
-                    disabled={loading}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50"
-                  >
-                    {loading ? 'Enregistrement...' : 'Enregistrer modifications'}
-                  </button>
-                )}
-                
-                {isEditing && (
-                  <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditableData({
-                        title: request.title,
-                        department: request.department,
-                        budget: request.budget,
-                        description: request.description,
-                      });
-                    }}
-                    className="px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Bouton de soumission */}
-            {action && (
-              <div className="mt-6 pt-6 border-t border-emerald-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3 text-slate-600">
-                    <History className="w-4 h-4" />
-                    <span className="text-sm">
-                      {action === 'validate' 
-                        ? 'La demande sera transmise au niveau suivant'
-                        : 'La demande sera marquée comme refusée'}
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleValidation}
-                    disabled={loading}
-                    className="group relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium py-3 px-8 rounded-xl transition-all duration-300 shadow-lg shadow-emerald-500/30 disabled:opacity-50"
-                  >
-                    <span className="relative flex items-center space-x-2">
+                {action && (
+                  <div className="p-5 border bg-gradient-to-br from-slate-50 to-gray-50 border-slate-200/70 rounded-xl">
+                    <h4 className="flex items-center mb-3 space-x-2 font-semibold text-slate-900">
+                      <MessageSquare className="w-5 h-5 text-blue-500" />
+                      <span>Commentaire {action === 'validate' ? 'de validation' : 'de refus'}</span>
+                    </h4>
+                    <textarea
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Ajoutez votre commentaire..."
+                      className="w-full px-4 py-3 mb-4 border rounded-lg resize-none border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={3}
+                    />
+                    <button
+                      onClick={handleValidation}
+                      disabled={loading}
+                      className="flex items-center justify-center w-full px-6 py-3 space-x-2 font-medium text-white transition-all rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50"
+                    >
                       {loading ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          <span>Traitement en cours...</span>
+                          <div className="w-4 h-4 border-2 border-white rounded-full border-t-transparent animate-spin" />
+                          <span>Traitement...</span>
                         </>
                       ) : (
                         <>
                           <Send className="w-5 h-5" />
-                          <span>Confirmer {action === 'validate' ? 'la validation' : 'le refus'}</span>
+                          <span>Confirmer</span>
                         </>
                       )}
-                    </span>
-                  </button>
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={loading}
+                  className="flex items-center justify-center flex-1 px-6 py-3 space-x-2 font-medium text-white transition-all bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white rounded-full border-t-transparent animate-spin" />
+                      <span>Enregistrement...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Enregistrer les modifications</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditableData({
+                      title: request.title,
+                      department: request.department,
+                      budget: request.budget,
+                      description: request.description,
+                    });
+                  }}
+                  className="flex items-center justify-center flex-1 px-6 py-3 space-x-2 font-medium transition-all text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 rounded-xl hover:from-slate-200 hover:to-slate-300"
+                >
+                  <X className="w-5 h-5" />
+                  <span>Annuler</span>
+                </button>
+              </div>
+            )}
+
+            {/* Historique des validations */}
+            {request.validation_history && request.validation_history.length > 0 && (
+              <div className="p-5 bg-white border border-slate-200/70 rounded-xl">
+                <h4 className="flex items-center mb-4 space-x-2 font-semibold text-slate-900">
+                  <History className="w-5 h-5 text-amber-500" />
+                  <span>Historique des validations</span>
+                </h4>
+                <div className="space-y-3">
+                  {request.validation_history.map((item: any, index: number) => (
+                    <div key={index} className="flex items-start p-3 space-x-3 rounded-lg bg-slate-50">
+                      <div className={`p-1.5 rounded-full ${
+                        item.action === 'VALIDATED' ? 'bg-emerald-100' :
+                        item.action === 'REJECTED' ? 'bg-red-100' :
+                        'bg-blue-100'
+                      }`}>
+                        {item.action === 'VALIDATED' ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-600" />
+                        ) : item.action === 'REJECTED' ? (
+                          <XCircle className="w-4 h-4 text-red-600" />
+                        ) : (
+                          <Edit2 className="w-4 h-4 text-blue-600" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-slate-900">{item.user} ({item.user_role})</p>
+                          <span className="text-xs text-slate-500">
+                            {new Date(item.timestamp).toLocaleDateString('fr-FR')}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-600">{item.comment}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
           </div>
-
-          {/* Historique de validation */}
-          {request.validation_history && request.validation_history.length > 0 && (
-            <div className="bg-white border border-slate-200/70 rounded-2xl p-6">
-              <h4 className="font-semibold text-slate-900 mb-4">Historique des validations</h4>
-              <div className="space-y-4">
-                {request.validation_history.map((item: any, index: number) => (
-                  <div key={index} className="flex items-start space-x-4 p-4 bg-slate-50/50 rounded-xl">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      item.action === 'VALIDATED' 
-                        ? 'bg-emerald-100 text-emerald-600' 
-                        : item.action === 'REJECTED'
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-blue-100 text-blue-600'
-                    }`}>
-                      {item.action === 'VALIDATED' ? (
-                        <CheckCircle className="w-5 h-5" />
-                      ) : item.action === 'REJECTED' ? (
-                        <XCircle className="w-5 h-5" />
-                      ) : (
-                        <Edit2 className="w-5 h-5" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="font-medium text-slate-900">
-                          {item.user} ({item.user_role})
-                        </p>
-                        <span className="text-sm text-slate-500">
-                          {new Date(item.timestamp).toLocaleDateString('fr-FR')}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-3 mb-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          item.action === 'VALIDATED'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : item.action === 'REJECTED'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {item.action === 'VALIDATED' ? 'VALIDÉ' : item.action === 'REJECTED' ? 'REFUSÉ' : 'MODIFIÉ'}
-                        </span>
-                        <span className="text-sm text-slate-600">Niveau: {item.level}</span>
-                      </div>
-                      {item.comment && (
-                        <p className="text-slate-600 text-sm">{item.comment}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
