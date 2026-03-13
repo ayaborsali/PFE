@@ -5,7 +5,6 @@ import {
   Plus, Search, Filter, Zap, Users, Briefcase, Target, 
   TrendingUp, CheckCircle, FileText, Calendar 
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import RecruitmentRequestList from './RecruitmentRequestList';
 import ValidationRequestList from './ValidationRequestList';
@@ -17,7 +16,7 @@ import InterviewEvaluationList from './InterviewEvaluationList';
 type View = 'requests' | 'validate' | 'offers' | 'candidates' | 'interviews';
 
 export default function RecruitmentModule() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [activeView, setActiveView] = useState<View>('requests');
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
   const [stats, setStats] = useState({
@@ -107,8 +106,8 @@ export default function RecruitmentModule() {
     },
   ];
 
-  const canCreateRequest = ['manager', 'directeur', 'rh'].includes(profile?.role?.toLowerCase() || '');
-  const canValidateRequests = ['manager', 'directeur', 'rh', 'daf', 'dga'].includes(profile?.role?.toLowerCase() || '');
+  const canCreateRequest = ['manager', 'directeur', 'rh'].includes(user?.role?.toLowerCase() || '');
+  const canValidateRequests = ['manager', 'directeur', 'rh', 'daf', 'dga'].includes(user?.role?.toLowerCase() || '');
 
   const getSearchPlaceholder = () => {
     switch (activeView) {

@@ -307,16 +307,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         </div>
 
         <div className="flex items-center space-x-3">
-          {onNewRequest && canCreateRequest() && (
-            <button
-              onClick={onNewRequest}
-              className="flex items-center px-4 py-2 space-x-2 text-white transition-all rounded-lg shadow-md bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nouvelle demande</span>
-            </button>
-          )}
-          
+         
           <button className="flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">
             <Filter className="w-4 h-4" />
             <span>Filtres avancés</span>
