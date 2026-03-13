@@ -23,40 +23,45 @@ export default function Login() {
   const { signIn, resetPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      const { error } = await signIn(email, password);
-      if (error) {
-        setError('Email ou mot de passe incorrect. Utilisez les identifiants de démo.');
-      }
-    } catch (err) {
-      setError('Erreur de connexion. Veuillez réessayer.');
-    } finally {
-      setLoading(false);
-    }
+  try {
+    await signIn(email, password, rememberMe);
+  } catch (err: any) {
+  const message = err.response?.data?.message;
+
+  if (message === 'Utilisateur non trouvé') {
+    setError("Cet email n'est pas enregistré. Vérifiez votre saisie.");
+  } else if (message === 'Mot de passe incorrect') {
+    setError("Le mot de passe est incorrect. Réessayez.");
+  } else {
+    setError("Impossible de se connecter. Veuillez réessayer plus tard.");
   };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      const { error } = await resetPassword(forgotEmail);
-      if (error) {
-        setError('Mode démo : Utilisez les identifiants fournis');
-      } else {
-        setResetSent(true);
-      }
-    } catch (err) {
-      setError('Erreur lors de la réinitialisation');
-    } finally {
-      setLoading(false);
+  try {
+    const res = await resetPassword(forgotEmail);
+    if (!res.success) {
+      setError(res.message); // Affiche le vrai message du backend
+    } else {
+      setResetSent(true); // Email envoyé avec succès
     }
-  };
+  } catch (err) {
+    setError('Erreur lors de la réinitialisation');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const demoCredentials = [
     { role: 'Manager', email: 'manager@rh.com', password: 'rh123', color: 'emerald' },
@@ -70,7 +75,7 @@ export default function Login() {
   if (showForgotPassword) {
     return (
       <div 
-        className="min-h-screen flex items-center justify-center p-4 relative"
+        className="relative flex items-center justify-center min-h-screen p-4"
         style={{
           backgroundImage: 'url(https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1920)',
           backgroundSize: 'cover',
@@ -82,34 +87,34 @@ export default function Login() {
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/85 to-slate-900/90 backdrop-blur-sm"></div>
         
         <div className="relative z-10 w-full max-w-md">
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-8">
-            <div className="text-center mb-8">
+          <div className="p-8 border shadow-2xl bg-white/95 backdrop-blur-xl rounded-2xl border-white/30">
+            <div className="mb-8 text-center">
               <div className="relative inline-block mb-4">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
+                <div className="flex items-center justify-center w-20 h-20 mx-auto shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl">
                   <Key className="w-10 h-10 text-white" />
                 </div>
-                <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center border-2 border-white">
+                <div className="absolute flex items-center justify-center w-8 h-8 border-2 border-white rounded-full -bottom-2 -right-2 bg-gradient-to-br from-emerald-500 to-teal-500">
                   <Shield className="w-3 h-3 text-white" />
                 </div>
               </div>
               
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+              <h2 className="text-2xl font-bold text-transparent bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text">
                 Mot de passe oublié
               </h2>
-              <p className="text-slate-600 mt-2">
+              <p className="mt-2 text-slate-600">
                 Entrez votre email pour réinitialiser votre mot de passe
               </p>
             </div>
 
             {resetSent ? (
-              <div className="text-center py-6">
-                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full flex items-center justify-center">
+              <div className="py-6 text-center">
+                <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100">
                   <CheckCircle className="w-10 h-10 text-emerald-600" />
                 </div>
-                <p className="font-bold text-lg text-emerald-900 mb-2">
+                <p className="mb-2 text-lg font-bold text-emerald-900">
                   Email envoyé avec succès !
                 </p>
-                <p className="text-slate-600 mb-6">
+                <p className="mb-6 text-slate-600">
                   Consultez votre boîte mail pour réinitialiser votre mot de passe
                 </p>
                 <button
@@ -118,16 +123,16 @@ export default function Login() {
                     setResetSent(false);
                     setForgotEmail('');
                   }}
-                  className="group flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-xl hover:from-slate-800 hover:to-slate-900 transition-all shadow-lg mx-auto"
+                  className="flex items-center justify-center px-6 py-3 mx-auto space-x-2 text-white transition-all shadow-lg group bg-gradient-to-r from-slate-700 to-slate-800 rounded-xl hover:from-slate-800 hover:to-slate-900"
                 >
                   <span>Retour à la connexion</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </button>
               </div>
             ) : (
               <form onSubmit={handleForgotPassword} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center">
+                  <label className="flex items-center block mb-2 text-sm font-medium text-slate-700">
                     <Mail className="w-4 h-4 mr-2" />
                     Adresse email professionnelle
                   </label>
@@ -136,16 +141,16 @@ export default function Login() {
                       type="email"
                       value={forgotEmail}
                       onChange={(e) => setForgotEmail(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3 bg-white border border-slate-300/70 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all shadow-sm"
+                      className="w-full py-3 pr-4 transition-all bg-white border shadow-sm outline-none pl-11 border-slate-300/70 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                       placeholder="votre.email@kilanigroupe.com"
                       required
                     />
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <Mail className="absolute w-5 h-5 -translate-y-1/2 left-3 top-1/2 text-slate-400" />
                   </div>
                 </div>
 
                 {error && (
-                  <div className="bg-red-50/80 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm backdrop-blur-sm">
+                  <div className="px-4 py-3 text-sm text-red-700 border border-red-200 bg-red-50/80 rounded-xl backdrop-blur-sm">
                     <div className="flex items-center">
                       <AlertCircle className="w-4 h-4 mr-2" />
                       {error}
@@ -168,7 +173,7 @@ export default function Login() {
                       ) : (
                         <>
                           <span>Envoyer le lien de réinitialisation</span>
-                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                         </>
                       )}
                     </div>
@@ -187,12 +192,12 @@ export default function Login() {
                 </div>
 
                 {/* Support IT */}
-                <div className="mt-8 pt-6 border-t border-slate-200">
+                <div className="pt-6 mt-8 border-t border-slate-200">
                   <div className="flex items-center space-x-3 text-sm text-slate-600">
                     <HelpCircle className="w-4 h-4 text-blue-500" />
                     <div>
                       <p className="font-medium">Besoin d'aide ?</p>
-                      <div className="flex items-center space-x-2 mt-1">
+                      <div className="flex items-center mt-1 space-x-2">
                         <Phone className="w-3 h-3" />
                         <span className="text-slate-500">Service IT: 01 23 45 67 89</span>
                       </div>
@@ -208,7 +213,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="relative flex items-center justify-center min-h-screen p-4 overflow-hidden">
       {/* Arrière-plan principal avec parallaxe */}
       <div className="fixed inset-0">
         <div 
@@ -226,34 +231,34 @@ export default function Login() {
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-slate-900/90 backdrop-blur-sm"></div>
         
         {/* Effets de particules */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 rounded-full w-96 h-96 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 left-0 rounded-full w-96 h-96 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 blur-3xl"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div className="grid items-center grid-cols-1 gap-8 lg:grid-cols-2">
           {/* Section gauche - Présentation premium */}
-          <div className="text-white p-8 lg:p-12">
-            <div className="flex items-center space-x-4 mb-8">
+          <div className="p-8 text-white lg:p-12">
+            <div className="flex items-center mb-8 space-x-4">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-2xl">
+                <div className="flex items-center justify-center w-16 h-16 shadow-2xl bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl">
                   <Building className="w-8 h-8 text-white" />
                 </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                <div className="absolute flex items-center justify-center w-8 h-8 border-2 border-white rounded-full shadow-lg -top-2 -right-2 bg-gradient-to-br from-blue-500 to-cyan-500">
                   <Sparkles className="w-3 h-3 text-white" />
                 </div>
               </div>
               <div>
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text text-transparent">
+                <h1 className="text-5xl font-bold text-transparent bg-gradient-to-r from-white via-emerald-200 to-white bg-clip-text">
                   Kilani Groupe
                 </h1>
-                <p className="text-xl text-slate-200 mt-2">Transformation Digitale des RH</p>
+                <p className="mt-2 text-xl text-slate-200">Transformation Digitale des RH</p>
               </div>
             </div>
 
             <div className="mb-10">
-              <div className="flex items-center space-x-3 mb-8">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 backdrop-blur-lg rounded-xl flex items-center justify-center border border-emerald-500/30">
+              <div className="flex items-center mb-8 space-x-3">
+                <div className="flex items-center justify-center w-12 h-12 border bg-gradient-to-br from-emerald-500/20 to-teal-500/20 backdrop-blur-lg rounded-xl border-emerald-500/30">
                   <Zap className="w-6 h-6 text-emerald-300" />
                 </div>
                 <h2 className="text-2xl font-bold">Une expérience RH révolutionnaire</h2>
@@ -282,12 +287,12 @@ export default function Login() {
                     description: "Réduction de 70% du temps de traitement des demandes"
                   }
                 ].map((item, idx) => (
-                  <div key={idx} className="flex items-start space-x-4 group hover:transform hover:translate-x-2 transition-transform">
-                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20 group-hover:border-emerald-500/50 transition-colors">
+                  <div key={idx} className="flex items-start space-x-4 transition-transform group hover:transform hover:translate-x-2">
+                    <div className="flex items-center justify-center flex-shrink-0 w-10 h-10 transition-colors border bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-xl border-white/20 group-hover:border-emerald-500/50">
                       <item.icon className="w-5 h-5 text-emerald-300 group-hover:text-emerald-400" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg mb-1 group-hover:text-emerald-300 transition-colors">
+                      <h3 className="mb-1 text-lg font-bold transition-colors group-hover:text-emerald-300">
                         {item.title}
                       </h3>
                       <p className="text-slate-300">{item.description}</p>
@@ -298,33 +303,33 @@ export default function Login() {
             </div>
 
             {/* Guide des identifiants démo */}
-            <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-lg border border-white/20 rounded-2xl p-6 mt-8">
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center">
+            <div className="p-6 mt-8 border bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-lg border-white/20 rounded-2xl">
+              <div className="flex items-center mb-4 space-x-2">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
-                <h3 className="font-bold text-lg">Mode Démonstration</h3>
+                <h3 className="text-lg font-bold">Mode Démonstration</h3>
               </div>
-              <p className="text-slate-300 text-sm mb-4">
+              <p className="mb-4 text-sm text-slate-300">
                 Testez la plateforme avec ces identifiants préconfigurés :
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {demoCredentials.map((cred, index) => (
                   <div 
                     key={index}
-                    className="group relative overflow-hidden bg-gradient-to-r from-white/5 to-white/0 border border-white/10 rounded-xl p-3 hover:border-white/30 transition-all"
+                    className="relative p-3 overflow-hidden transition-all border group bg-gradient-to-r from-white/5 to-white/0 border-white/10 rounded-xl hover:border-white/30"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`w-8 h-8 rounded-lg bg-gradient-to-br from-${cred.color}-500 to-${cred.color}-600 flex items-center justify-center`}>
-                          <span className="text-white text-xs font-bold">{cred.role.charAt(0)}</span>
+                          <span className="text-xs font-bold text-white">{cred.role.charAt(0)}</span>
                         </div>
                         <div>
                           <p className="text-sm font-medium">{cred.role}</p>
                           <p className="text-xs text-slate-400">{cred.email}</p>
                         </div>
                       </div>
-                      <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all" />
+                      <ExternalLink className="w-3 h-3 transition-all opacity-0 text-slate-500 group-hover:text-emerald-400 group-hover:opacity-100" />
                     </div>
                   </div>
                 ))}
@@ -337,22 +342,22 @@ export default function Login() {
             <div className="w-full max-w-md">
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-3xl blur-xl opacity-30"></div>
-                <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-8">
+                <div className="relative p-8 border shadow-2xl bg-white/95 backdrop-blur-xl rounded-2xl border-white/40">
                   {/* En-tête du formulaire */}
-                  <div className="text-center mb-8">
+                  <div className="mb-8 text-center">
                     <div className="relative inline-block mb-4">
-                      <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-2xl mx-auto">
+                      <div className="flex items-center justify-center w-20 h-20 mx-auto shadow-2xl bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl">
                         <Lock className="w-10 h-10 text-white" />
                       </div>
-                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                      <div className="absolute flex items-center justify-center w-8 h-8 border-2 border-white rounded-full shadow-lg -bottom-2 -right-2 bg-gradient-to-br from-blue-500 to-cyan-500">
                         <Shield className="w-3 h-3 text-white" />
                       </div>
                     </div>
                     
-                    <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                    <h2 className="text-2xl font-bold text-transparent bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text">
                       Connexion Sécurisée
                     </h2>
-                    <p className="text-slate-600 mt-2">
+                    <p className="mt-2 text-slate-600">
                       Accédez à votre espace RH personnel
                     </p>
                   </div>
@@ -360,7 +365,7 @@ export default function Login() {
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Champ Email */}
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center">
+                      <label className="flex items-center block mb-2 text-sm font-medium text-slate-700">
                         <Mail className="w-4 h-4 mr-2" />
                         Email professionnel
                       </label>
@@ -373,13 +378,13 @@ export default function Login() {
                           placeholder="exemple@kilanigroupe.com"
                           required
                         />
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                        <Mail className="absolute w-5 h-5 transition-colors -translate-y-1/2 left-3 top-1/2 text-slate-400 group-hover:text-emerald-500" />
                       </div>
                     </div>
 
                     {/* Champ Mot de passe */}
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center">
+                      <label className="flex items-center block mb-2 text-sm font-medium text-slate-700">
                         <Lock className="w-4 h-4 mr-2" />
                         Mot de passe
                       </label>
@@ -392,11 +397,11 @@ export default function Login() {
                           placeholder="••••••••"
                           required
                         />
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                        <Lock className="absolute w-5 h-5 transition-colors -translate-y-1/2 left-3 top-1/2 text-slate-400 group-hover:text-emerald-500" />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 transition-colors"
+                          className="absolute transition-colors -translate-y-1/2 right-3 top-1/2 text-slate-400 hover:text-emerald-600"
                         >
                           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                         </button>
@@ -422,7 +427,7 @@ export default function Login() {
                             {rememberMe && <CheckCircle className="w-3 h-3 text-white" />}
                           </div>
                         </div>
-                        <span className="text-sm text-slate-600 group-hover:text-slate-800 transition-colors">
+                        <span className="text-sm transition-colors text-slate-600 group-hover:text-slate-800">
                           Se souvenir de moi
                         </span>
                       </label>
@@ -430,7 +435,7 @@ export default function Login() {
                       <button
                         type="button"
                         onClick={() => setShowForgotPassword(true)}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                        className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
                       >
                         Mot de passe oublié ?
                       </button>
@@ -450,7 +455,7 @@ export default function Login() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full group relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium py-4 px-4 rounded-xl transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 disabled:opacity-50"
+                      className="relative w-full px-4 py-4 overflow-hidden font-medium text-white transition-all duration-300 shadow-lg group bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 disabled:opacity-50"
                     >
                       <div className="relative flex items-center justify-center space-x-2">
                         {loading ? (
@@ -461,7 +466,7 @@ export default function Login() {
                         ) : (
                           <>
                             <span>Se connecter</span>
-                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                           </>
                         )}
                       </div>
@@ -470,8 +475,8 @@ export default function Login() {
 
                     {/* Support IT */}
                     <div className="pt-6 border-t border-slate-200/50">
-                      <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200/50">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                      <div className="flex items-center p-3 space-x-3 border bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-blue-200/50">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600">
                           <HelpCircle className="w-5 h-5 text-white" />
                         </div>
                         <div>
@@ -479,7 +484,7 @@ export default function Login() {
                           <p className="text-sm text-slate-600">
                             Problème de connexion ? Contactez le service IT
                           </p>
-                          <div className="flex items-center space-x-2 mt-1">
+                          <div className="flex items-center mt-1 space-x-2">
                             <Phone className="w-3 h-3 text-blue-600" />
                             <span className="text-sm font-medium text-blue-700">01 23 45 67 89</span>
                           </div>
@@ -491,11 +496,11 @@ export default function Login() {
               </div>
 
               {/* Footer */}
-              <div className="text-center mt-6">
+              <div className="mt-6 text-center">
                 <p className="text-sm text-white/80 px-4 py-2.5 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm rounded-xl border border-white/20 inline-block">
                   © 2026 Kilani Groupe • Plateforme RH Digitalisée v3.0
                 </p>
-                <p className="text-xs text-white/60 mt-2">
+                <p className="mt-2 text-xs text-white/60">
                   Système certifié ISO 27001 & RGPD compliant
                 </p>
               </div>
@@ -505,7 +510,7 @@ export default function Login() {
       </div>
 
       {/* Animations CSS */}
-      <style jsx>{`
+      <style >{`
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-10px); }

@@ -5,15 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "start": "react-scripts start", 
+    "start": "react-scripts start",
+    "type": "module",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.4",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "lucide-react": "^0.344.0",
+    "nodemailer": "^8.0.1",
+    "pg": "^8.20.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.6.0"
@@ -33,5 +39,10 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.21"
-  }
+  },
+  "description": "Application web professionnelle de gestion des ressources humaines pour Kilani Groupe.",
+  "main": "eslint.config.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

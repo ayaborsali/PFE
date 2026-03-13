@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
 import { 
   TrendingUp, Users, Briefcase, CheckCircle, Clock, 
   Target, AlertCircle, BarChart3, PieChart, TrendingDown,
@@ -185,7 +184,7 @@ export default function Analytics() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+        <div className="w-12 h-12 border-b-2 rounded-full animate-spin border-emerald-500"></div>
       </div>
     );
   }
@@ -193,21 +192,21 @@ export default function Analytics() {
   return (
     <div className="space-y-6">
       {/* En-tête avec filtres */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
         <div>
           <div className="flex items-center space-x-3">
-            <div className="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg">
+            <div className="p-3 shadow-lg bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl">
               <BarChart3 className="w-8 h-8 text-white" />
             </div>
             <div>
               <h2 className="text-3xl font-bold text-slate-900">Analytics RH</h2>
-              <p className="text-slate-600 mt-1">Tableaux de bord stratégiques et indicateurs de performance</p>
+              <p className="mt-1 text-slate-600">Tableaux de bord stratégiques et indicateurs de performance</p>
             </div>
           </div>
         </div>
         
         <div className="flex items-center space-x-3">
-          <div className="flex bg-slate-100 rounded-xl p-1">
+          <div className="flex p-1 bg-slate-100 rounded-xl">
             {(['week', 'month', 'quarter'] as const).map((range) => (
               <button
                 key={range}
@@ -225,20 +224,20 @@ export default function Analytics() {
           
           <button
             onClick={fetchStats}
-            className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            className="p-3 transition-colors bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
             title="Rafraîchir"
           >
             <RefreshCw className={`w-5 h-5 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
           </button>
           
-          <button className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+          <button className="p-3 transition-colors bg-white border border-slate-200 rounded-xl hover:bg-slate-50">
             <Download className="w-5 h-5 text-slate-600" />
           </button>
         </div>
       </div>
 
       {/* Indicateurs principaux */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {statsCards.map((card, index) => {
           const Icon = card.icon;
           const TrendIcon = getTrendIcon(card.change);
@@ -283,7 +282,7 @@ export default function Analytics() {
                     <p className="text-sm text-slate-600">{card.subValue}</p>
                     <p className="text-xs text-slate-500">{card.description}</p>
                   </div>
-                  <button className="p-2 hover:bg-white/50 rounded-lg transition-colors">
+                  <button className="p-2 transition-colors rounded-lg hover:bg-white/50">
                     <Eye className="w-4 h-4 text-slate-500" />
                   </button>
                 </div>
@@ -294,9 +293,9 @@ export default function Analytics() {
       </div>
 
       {/* Graphiques et visualisations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Graphique d'activité */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="p-6 bg-white border shadow-sm rounded-2xl border-slate-200">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">Activité hebdomadaire</h3>
@@ -311,26 +310,26 @@ export default function Analytics() {
                 <div className="w-12 text-sm text-slate-500">{item.day}</div>
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center">
-                    <div className="text-xs text-slate-500 w-16">Demandes</div>
-                    <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
+                    <div className="w-16 text-xs text-slate-500">Demandes</div>
+                    <div className="flex-1 h-3 overflow-hidden rounded-full bg-slate-100">
                       <div 
-                        className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full"
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
                         style={{ width: `${(item.requests / 10) * 100}%` }}
                       ></div>
                     </div>
-                    <div className="text-sm font-medium text-slate-900 w-12 text-right">
+                    <div className="w-12 text-sm font-medium text-right text-slate-900">
                       {item.requests}
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <div className="text-xs text-slate-500 w-16">Candidats</div>
-                    <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
+                    <div className="w-16 text-xs text-slate-500">Candidats</div>
+                    <div className="flex-1 h-3 overflow-hidden rounded-full bg-slate-100">
                       <div 
-                        className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full"
+                        className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
                         style={{ width: `${(item.candidates / 30) * 100}%` }}
                       ></div>
                     </div>
-                    <div className="text-sm font-medium text-slate-900 w-12 text-right">
+                    <div className="w-12 text-sm font-medium text-right text-slate-900">
                       {item.candidates}
                     </div>
                   </div>
@@ -341,7 +340,7 @@ export default function Analytics() {
         </div>
 
         {/* Répartition par département */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="p-6 bg-white border shadow-sm rounded-2xl border-slate-200">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">Répartition des recrutements</h3>
@@ -358,13 +357,13 @@ export default function Analytics() {
                   <span className="text-sm text-slate-700">{dept.name}</span>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <div className="w-32 bg-slate-100 rounded-full h-2">
+                  <div className="w-32 h-2 rounded-full bg-slate-100">
                     <div 
                       className={`h-full rounded-full ${dept.color}`}
                       style={{ width: `${dept.value}%` }}
                     ></div>
                   </div>
-                  <span className="text-sm font-semibold text-slate-900 w-12 text-right">
+                  <span className="w-12 text-sm font-semibold text-right text-slate-900">
                     {dept.value}%
                   </span>
                 </div>
@@ -372,7 +371,7 @@ export default function Analytics() {
             ))}
           </div>
           
-          <div className="mt-6 pt-6 border-t border-slate-100">
+          <div className="pt-6 mt-6 border-t border-slate-100">
             <div className="flex items-center justify-between text-sm text-slate-600">
               <span>Total recrutements</span>
               <span className="font-semibold text-slate-900">{stats.totalRequests}</span>
@@ -382,27 +381,27 @@ export default function Analytics() {
       </div>
 
       {/* Évaluations et indicateurs avancés */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Statut des évaluations */}
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+        <div className="p-6 border bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border-amber-200">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center">
+            <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl">
               <Clock className="w-6 h-6 text-white" />
             </div>
             <span className="text-xs font-medium text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full">
               {stats.pendingEvaluations} en attente
             </span>
           </div>
-          <p className="text-3xl font-bold text-amber-900 mb-2">{stats.pendingEvaluations}</p>
-          <p className="text-lg font-semibold text-amber-800 mb-3">Évaluations en cours</p>
+          <p className="mb-2 text-3xl font-bold text-amber-900">{stats.pendingEvaluations}</p>
+          <p className="mb-3 text-lg font-semibold text-amber-800">Évaluations en cours</p>
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-amber-700">Taux de complétion</span>
               <span className="font-bold text-amber-900">{evaluationRate}%</span>
             </div>
-            <div className="w-full bg-amber-100 rounded-full h-2">
+            <div className="w-full h-2 rounded-full bg-amber-100">
               <div 
-                className="bg-gradient-to-r from-amber-500 to-orange-500 h-2 rounded-full"
+                className="h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500"
                 style={{ width: `${evaluationRate}%` }}
               ></div>
             </div>
@@ -410,9 +409,9 @@ export default function Analytics() {
         </div>
 
         {/* Indicateurs de performance */}
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200">
+        <div className="p-6 border bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-slate-200">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-2xl flex items-center justify-center">
+            <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-slate-600 to-slate-700 rounded-2xl">
               <Zap className="w-6 h-6 text-white" />
             </div>
             <span className="text-xs font-medium text-slate-700 bg-slate-200 px-3 py-1.5 rounded-full">
@@ -421,55 +420,55 @@ export default function Analytics() {
           </div>
           <div className="space-y-4">
             <div>
-              <div className="flex justify-between text-sm mb-2">
+              <div className="flex justify-between mb-2 text-sm">
                 <span className="text-slate-600">Délai de recrutement moyen</span>
                 <span className="font-semibold text-slate-900">28 jours</span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-2">
-                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '75%' }}></div>
+              <div className="w-full h-2 rounded-full bg-slate-200">
+                <div className="h-2 rounded-full bg-emerald-500" style={{ width: '75%' }}></div>
               </div>
             </div>
             
             <div>
-              <div className="flex justify-between text-sm mb-2">
+              <div className="flex justify-between mb-2 text-sm">
                 <span className="text-slate-600">Qualité des recrutements</span>
                 <span className="font-semibold text-slate-900">92%</span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-2">
-                <div className="bg-blue-500 h-2 rounded-full" style={{ width: '92%' }}></div>
+              <div className="w-full h-2 rounded-full bg-slate-200">
+                <div className="h-2 bg-blue-500 rounded-full" style={{ width: '92%' }}></div>
               </div>
             </div>
             
             <div>
-              <div className="flex justify-between text-sm mb-2">
+              <div className="flex justify-between mb-2 text-sm">
                 <span className="text-slate-600">Coût par recrutement</span>
                 <span className="font-semibold text-slate-900">4,200€</span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-2">
-                <div className="bg-violet-500 h-2 rounded-full" style={{ width: '68%' }}></div>
+              <div className="w-full h-2 rounded-full bg-slate-200">
+                <div className="h-2 rounded-full bg-violet-500" style={{ width: '68%' }}></div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Alertes et actions */}
-        <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl p-6 border border-red-200">
+        <div className="p-6 border border-red-200 bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center">
+            <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl">
               <AlertCircle className="w-6 h-6 text-white" />
             </div>
             <span className="text-xs font-medium text-red-700 bg-red-100 px-3 py-1.5 rounded-full">
               {stats.openRequests} actions
             </span>
           </div>
-          <p className="text-xl font-bold text-red-900 mb-3">Alertes prioritaires</p>
+          <p className="mb-3 text-xl font-bold text-red-900">Alertes prioritaires</p>
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-white/50 rounded-xl">
               <div>
                 <p className="font-medium text-red-800">Demandes expirant cette semaine</p>
                 <p className="text-sm text-red-600">3 demandes nécessitent une action</p>
               </div>
-              <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+              <div className="flex items-center justify-center w-8 h-8 bg-red-500 rounded-lg">
                 <span className="text-xs font-bold text-white">3</span>
               </div>
             </div>
@@ -479,12 +478,12 @@ export default function Analytics() {
                 <p className="font-medium text-red-800">Évaluations en retard</p>
                 <p className="text-sm text-red-600">2 évaluations dépassent le délai</p>
               </div>
-              <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+              <div className="flex items-center justify-center w-8 h-8 bg-orange-500 rounded-lg">
                 <span className="text-xs font-bold text-white">2</span>
               </div>
             </div>
             
-            <button className="w-full mt-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-medium rounded-xl hover:from-red-600 hover:to-orange-600 transition-all">
+            <button className="w-full py-3 mt-4 font-medium text-white transition-all bg-gradient-to-r from-red-500 to-orange-500 rounded-xl hover:from-red-600 hover:to-orange-600">
               Voir toutes les alertes
             </button>
           </div>
@@ -492,7 +491,7 @@ export default function Analytics() {
       </div>
 
       {/* Résumé global */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 text-white">
+      <div className="p-6 text-white bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-xl font-bold">Résumé global RH</h3>
@@ -501,10 +500,10 @@ export default function Analytics() {
           <Globe className="w-8 h-8 text-slate-400" />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+              <div className="flex items-center justify-center w-10 h-10 bg-emerald-500/20 rounded-xl">
                 <CheckCircle className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
@@ -516,7 +515,7 @@ export default function Analytics() {
           
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-xl">
                 <Building className="w-5 h-5 text-blue-400" />
               </div>
               <div>
@@ -528,7 +527,7 @@ export default function Analytics() {
           
           <div className="space-y-3">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center">
+              <div className="flex items-center justify-center w-10 h-10 bg-violet-500/20 rounded-xl">
                 <Award className="w-5 h-5 text-violet-400" />
               </div>
               <div>
@@ -539,7 +538,7 @@ export default function Analytics() {
           </div>
         </div>
         
-        <div className="mt-6 pt-6 border-t border-slate-700/50">
+        <div className="pt-6 mt-6 border-t border-slate-700/50">
           <p className="text-sm text-slate-400">
             Dernière mise à jour: {new Date().toLocaleDateString('fr-FR', { 
               weekday: 'long', 

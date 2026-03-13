@@ -14,7 +14,6 @@ import {
   CalendarDays, HelpCircle, XCircle, UserX, Video, 
   ExternalLink, Brain, BarChart3
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 // Types

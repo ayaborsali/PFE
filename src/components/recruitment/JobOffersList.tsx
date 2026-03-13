@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { 
   Briefcase, Calendar, Edit2, Eye, Globe, Linkedin, 
   Users, Zap, FileText, Building, Clock, Tag, 

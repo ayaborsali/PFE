@@ -8,7 +8,6 @@ import {
   RefreshCw, ExternalLink, FileText, CalendarDays, MapPinOff,
   Video, MessageSquare, Clock3, Send, X, Plus, Trash2
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 interface Candidate {

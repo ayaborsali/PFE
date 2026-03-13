@@ -6,7 +6,6 @@ import {
   Edit, Send, MessageSquare, Mail, Bell,
   UserPlus, UserMinus, Briefcase, GraduationCap, Zap
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import EvaluationList from './EvaluationList';
 import NewEvaluationModal from './NewEvaluationModal';

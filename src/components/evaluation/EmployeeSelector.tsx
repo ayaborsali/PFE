@@ -5,7 +5,6 @@ import {
   GraduationCap, Building, Mail, Phone, MapPin,
   ChevronDown, ChevronUp, Users, Award
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
 // Données mockées pour les tests

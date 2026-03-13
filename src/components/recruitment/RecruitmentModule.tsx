@@ -22,7 +22,7 @@ export default function RecruitmentModule() {
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
   const [stats, setStats] = useState({
     openRequests: 0,
-    pendingValidations: 1,
+    pendingValidations: 0,
     activeOffers: 0,
     totalCandidates: 0,
     interviews: 0,
@@ -35,44 +35,32 @@ export default function RecruitmentModule() {
 
   const fetchStats = async () => {
     try {
-      const [
-        requestsData, 
-        pendingValidationsData, 
-        offersData, 
-        candidatesData, 
-        interviewsData
-      ] = await Promise.all([
-        supabase.from('recruitment_requests').select('id', { count: 'exact' }).eq('status', 'Open'),
-        supabase.from('recruitment_requests').select('id', { count: 'exact' })
-          .eq('status', 'InProgress')
-          .eq('current_validation_level', getCurrentValidationLevel()),
-        supabase.from('job_offers').select('id', { count: 'exact' }).eq('status', 'Published'),
-        supabase.from('candidates').select('id', { count: 'exact' }),
-        supabase.from('interviews').select('id', { count: 'exact' }).eq('status', 'Scheduled'),
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const headers = { 'Authorization': `Bearer ${token}` };
+      
+      const [pendingRes, inProgressRes, validatedRes] = await Promise.all([
+        fetch('http://localhost:5000/api/recruitmentRequests?status=En attente&limit=1', { headers }),
+        fetch('http://localhost:5000/api/recruitmentRequests?status=En cours&limit=1', { headers }),
+        fetch('http://localhost:5000/api/recruitmentRequests?status=Validées&limit=1', { headers })
+      ]);
+
+      const [pendingData, inProgressData, validatedData] = await Promise.all([
+        pendingRes.json(),
+        inProgressRes.json(),
+        validatedRes.json()
       ]);
 
       setStats({
-        openRequests: requestsData.count || 0,
-        pendingValidations: pendingValidationsData.count || 1,
-        activeOffers: offersData.count || 0,
-        totalCandidates: candidatesData.count || 0,
-        interviews: interviewsData.count || 0,
+        openRequests: (pendingData.totalCount || 0) + (inProgressData.totalCount || 0),
+        pendingValidations: inProgressData.totalCount || 0,
+        activeOffers: validatedData.totalCount || 0,
+        totalCandidates: 0,
+        interviews: 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
-    }
-  };
-
-  // Fonction pour obtenir le niveau de validation actuel basé sur le rôle
-  const getCurrentValidationLevel = () => {
-    const role = profile?.role?.toLowerCase();
-    switch (role) {
-      case 'manager': return 'Manager';
-      case 'directeur': return 'Directeur';
-      case 'rh': return 'DRH';
-      case 'daf': return 'DAF';
-      case 'dga': return 'DGA/DG';
-      default: return 'Manager';
     }
   };
 
@@ -122,7 +110,6 @@ export default function RecruitmentModule() {
   const canCreateRequest = ['manager', 'directeur', 'rh'].includes(profile?.role?.toLowerCase() || '');
   const canValidateRequests = ['manager', 'directeur', 'rh', 'daf', 'dga'].includes(profile?.role?.toLowerCase() || '');
 
-  // Fonction pour obtenir le placeholder de recherche selon la vue active
   const getSearchPlaceholder = () => {
     switch (activeView) {
       case 'requests':
@@ -158,7 +145,7 @@ export default function RecruitmentModule() {
               </div>
             </div>
             
-            {/* Statistiques en ligne */}
+            {/* Statistiques */}
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
                 <div className="p-2 rounded-lg bg-emerald-100">
@@ -214,7 +201,7 @@ export default function RecruitmentModule() {
             </div>
           </div>
           
-          {/* Bouton d'action */}
+          {/* Bouton Nouvelle demande */}
           {canCreateRequest && (
             <div className="lg:text-right">
               <button
@@ -242,7 +229,6 @@ export default function RecruitmentModule() {
               const Icon = view.icon;
               const isActive = activeView === view.id;
               
-              // Classes dynamiques pour les couleurs
               const getActiveClasses = () => {
                 switch (view.color) {
                   case 'emerald':
@@ -320,7 +306,11 @@ export default function RecruitmentModule() {
         {/* Contenu */}
         <div className="px-5 pb-5">
           {activeView === 'requests' && (
-            <RecruitmentRequestList onUpdate={fetchStats} searchTerm={searchTerm} />
+            <RecruitmentRequestList 
+              onUpdate={fetchStats} 
+              searchTerm={searchTerm}
+              onNewRequest={() => setShowNewRequestModal(true)}
+            />
           )}
           
           {activeView === 'validate' && canValidateRequests && (

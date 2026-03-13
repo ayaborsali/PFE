@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { X, Check, XCircle, Edit, MessageSquare } from 'lucide-react';
-import { supabase, RecruitmentRequest } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
@@ -71,11 +70,11 @@ export default function RequestDetailModal({ request, onClose, onUpdate }: Props
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200">
           <h3 className="text-xl font-bold text-slate-900">Détails de la demande</h3>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 transition-colors rounded-lg hover:bg-slate-100">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -109,15 +108,15 @@ export default function RequestDetailModal({ request, onClose, onUpdate }: Props
           </div>
 
           <div>
-            <p className="text-sm text-slate-600 mb-2">Argumentaire</p>
+            <p className="mb-2 text-sm text-slate-600">Argumentaire</p>
             <p className="text-slate-900">{request.reason_comment}</p>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-3">Historique des validations</h4>
+            <h4 className="mb-3 font-semibold">Historique des validations</h4>
             <div className="space-y-2">
               {validations.map((validation) => (
-                <div key={validation.id} className="flex items-start space-x-3 p-3 bg-slate-50 rounded-lg">
+                <div key={validation.id} className="flex items-start p-3 space-x-3 rounded-lg bg-slate-50">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                     validation.action === 'Approved' ? 'bg-green-100' : 'bg-red-100'
                   }`}>
@@ -128,9 +127,9 @@ export default function RequestDetailModal({ request, onClose, onUpdate }: Props
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-sm">{validation.profiles?.full_name} - {validation.validator_role}</p>
+                    <p className="text-sm font-medium">{validation.profiles?.full_name} - {validation.validator_role}</p>
                     <p className="text-xs text-slate-600">{validation.action} le {new Date(validation.action_date).toLocaleDateString('fr-FR')}</p>
-                    {validation.comment && <p className="text-sm text-slate-700 mt-1">{validation.comment}</p>}
+                    {validation.comment && <p className="mt-1 text-sm text-slate-700">{validation.comment}</p>}
                   </div>
                 </div>
               ))}
@@ -138,30 +137,30 @@ export default function RequestDetailModal({ request, onClose, onUpdate }: Props
           </div>
 
           {canValidate && request.status === 'Pending' && (
-            <div className="border-t pt-6">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+            <div className="pt-6 border-t">
+              <label className="block mb-2 text-sm font-medium text-slate-700">
                 Commentaire
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
+                className="w-full px-4 py-2 border rounded-lg outline-none resize-none border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 placeholder="Ajoutez un commentaire..."
               />
 
-              <div className="flex justify-end space-x-3 mt-4">
+              <div className="flex justify-end mt-4 space-x-3">
                 <button
                   onClick={() => handleAction('Rejected')}
                   disabled={loading}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                  className="px-4 py-2 text-white transition-colors bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
                   Refuser
                 </button>
                 <button
                   onClick={() => handleAction('Approved')}
                   disabled={loading}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg transition-all duration-200 shadow-lg shadow-emerald-500/30 disabled:opacity-50"
+                  className="px-4 py-2 text-white transition-all duration-200 rounded-lg shadow-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-emerald-500/30 disabled:opacity-50"
                 >
                   Valider
                 </button>

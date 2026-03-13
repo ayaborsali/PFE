@@ -4,7 +4,6 @@ import {
   Clock, User, Building, FileText, Target,
   AlertCircle, Send, History, Shield, Award, DollarSign, Users
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 

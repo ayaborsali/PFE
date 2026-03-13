@@ -7,7 +7,6 @@ import {
   Users, Shield, Award, FileText, Sparkles,
   UserCheck, UserX, History, Save, X, Send, ThumbsUp, ThumbsDown
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import RequestValidationModal from './RequestValidationModal';
 import toast from 'react-hot-toast';

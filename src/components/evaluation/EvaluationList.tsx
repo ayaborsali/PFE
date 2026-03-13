@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { Clock, User, Eye, Edit, CheckCircle, MessageSquare, AlertCircle, Mail } from 'lucide-react';
 import EvaluationDetailModal from './EvaluationDetailModal';
 import toast from 'react-hot-toast';

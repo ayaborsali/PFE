@@ -4,7 +4,6 @@ import {
   MessageSquare, ArrowRight, Shield, Award, AlertCircle, UserCheck,
   Star, TrendingUp, ThumbsUp, ThumbsDown
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 

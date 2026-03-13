@@ -1,15 +1,13 @@
 //manager soumettre la demande d'emploi et les détails de la demande
-
 import { useState, useEffect } from 'react';
 import { 
-  X, Briefcase, Building, Users, DollarSign, Calendar, 
+  X, Briefcase, Building, Users, DollarSign,  
   FileText, Target, Zap, AlertCircle, CheckCircle, 
-  TrendingUp, Globe, Shield, Clock, Award, Sparkles,
-  ChevronDown, Search, MapPin, UserPlus, UserMinus,
+  TrendingUp, Globe, Shield,  Award, Sparkles,
+  ChevronDown, Search, MapPin, UserMinus,
   RefreshCw, TrendingUp as Growth, FolderPlus,
-  AlertTriangle, Info
+  Info
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -18,7 +16,6 @@ interface Props {
   onSuccess: () => void;
 }
 
-// Types améliorés pour la cause de recrutement
 interface RecruitmentCauseDetail {
   mainReason: string;
   subReason?: string;
@@ -98,7 +95,54 @@ const jobTitlesList = [
   'Conseiller Client',
   'Responsable Service Client',
   'Support Technique',
-  'Téléconseiller'
+  'Téléconseiller',
+  
+  // Stagiaires et Alternants
+  'Stagiaire Développement',
+  'Stagiaire Marketing',
+  'Stagiaire RH',
+  'Stagiaire Commercial',
+  'Stagiaire Comptabilité',
+  'Stagiaire Communication',
+  'Stagiaire Design',
+  'Alternant Développement',
+  'Alternant Marketing',
+  'Alternant RH',
+  'Alternant Commercial',
+  'Alternant Comptabilité',
+  
+  // CDD Courts / Temporaires
+  'CDD Court - Développement',
+  'CDD Court - Support',
+  'CDD Court - Commercial',
+  'CDD Court - Administratif',
+  'Intérimaire Production',
+  'Intérimaire Logistique',
+  'Intérimaire Administratif',
+  'Freelance Développement',
+  'Freelance Design',
+  'Freelance Rédaction',
+  'Saisonnier Vente',
+  'Saisonnier Support',
+  'Saisonnier Production',
+  'Auxiliaire Administratif',
+  'Assistant Temps Partiel',
+  'Aide-comptable Junior',
+  'Remplacement Court Terme',
+  'Congé Maternité Remplacement',
+  'Congé Maladie Remplacement',
+  
+  // Postes sans impact budgétaire significatif
+  'Technicien Niveau 1',
+  "Agent d'entretien",
+  'Manutentionnaire',
+  'Préparateur de commandes',
+  'Cariste',
+  'Standardiste',
+  "Agent d'accueil",
+  'Opérateur de saisie',
+  'Archiviste',
+  'Coursier'
 ].sort();
 
 // Liste des départements
@@ -158,7 +202,7 @@ const locationsList = [
   'Genève'
 ].sort();
 
-const contractTypes = ['CDI', 'CDD', 'Stage', 'Alternance', 'Freelance', 'Intérim'];
+const contractTypes = ['CDI', 'CDD', 'Stage', 'Alternance', 'Freelance', 'Intérim', 'CDD Court (<3 mois)', 'Saisonnier'];
 
 // Structure améliorée des causes de recrutement
 const recruitmentReasons = {
@@ -176,7 +220,6 @@ const recruitmentReasons = {
     ],
     questions: [
       'Quel est le nouveau projet/activité ?'
-         
     ]
   },
   'Remplacement': {
@@ -287,6 +330,140 @@ const recruitmentReasons = {
   }
 };
 
+// Circuits de validation par poste
+const validationFlowsByJob: Record<string, string[]> = {
+  // ===== POSTES AVEC VALIDATION UNIQUEMENT PAR MANAGER =====
+  // Stagiaires
+  'Stagiaire Développement': ['Manager'],
+  'Stagiaire Marketing': ['Manager'],
+  'Stagiaire RH': ['Manager'],
+  'Stagiaire Commercial': ['Manager'],
+  'Stagiaire Comptabilité': ['Manager'],
+  'Stagiaire Communication': ['Manager'],
+  'Stagiaire Design': ['Manager'],
+  
+  // Alternants / Apprentis
+  'Alternant Développement': ['Manager'],
+  'Alternant Marketing': ['Manager'],
+  'Alternant RH': ['Manager'],
+  'Alternant Commercial': ['Manager'],
+  'Alternant Comptabilité': ['Manager'],
+  
+  // CDD courts / Missions temporaires
+  'CDD Court - Développement': ['Manager'],
+  'CDD Court - Support': ['Manager'],
+  'CDD Court - Commercial': ['Manager'],
+  'CDD Court - Administratif': ['Manager'],
+  
+  // Intérimaires / Temporaires
+  'Intérimaire Production': ['Manager'],
+  'Intérimaire Logistique': ['Manager'],
+  'Intérimaire Administratif': ['Manager'],
+  
+  // Freelances / Consultants ponctuels
+  'Freelance Développement': ['Manager'],
+  'Freelance Design': ['Manager'],
+  'Freelance Rédaction': ['Manager'],
+  
+  // Jobs saisonniers
+  'Saisonnier Vente': ['Manager'],
+  'Saisonnier Support': ['Manager'],
+  'Saisonnier Production': ['Manager'],
+  
+  // Postes à temps partiel / auxiliaires
+  'Auxiliaire Administratif': ['Manager'],
+  'Assistant Temps Partiel': ['Manager'],
+  'Aide-comptable Junior': ['Manager'],
+  
+  // Remplacements temporaires
+  'Remplacement Court Terme': ['Manager'],
+  'Congé Maternité Remplacement': ['Manager'],
+  'Congé Maladie Remplacement': ['Manager'],
+  
+  // Postes sans impact budgétaire significatif
+  'Technicien Niveau 1': ['Manager'],
+  "Agent d'entretien": ['Manager'],
+  'Manutentionnaire': ['Manager'],
+  'Préparateur de commandes': ['Manager'],
+  'Cariste': ['Manager'],
+  'Standardiste': ['Manager'],
+  "Agent d'accueil": ['Manager'],
+  'Opérateur de saisie': ['Manager'],
+  'Archiviste': ['Manager'],
+  'Coursier': ['Manager'],
+
+  // ===== POSTES OPERATIONNELS / EXECUTION =====
+  // Circuit standard : Manager → Directeur → DRH
+  'Développeur Full Stack': ['Manager', 'Directeur', 'DRH'],
+  'Développeur Frontend': ['Manager', 'Directeur', 'DRH'],
+  'Développeur Backend': ['Manager', 'Directeur', 'DRH'],
+  'Développeur Mobile': ['Manager', 'Directeur', 'DRH'],
+  'Data Analyst': ['Manager', 'Directeur', 'DRH'],
+  'QA Tester': ['Manager', 'Directeur', 'DRH'],
+  'Commercial': ['Manager', 'Directeur', 'DRH'],
+  'Community Manager': ['Manager', 'Directeur', 'DRH'],
+  'Graphiste': ['Manager', 'Directeur', 'DRH'],
+  'Conseiller Client': ['Manager', 'Directeur', 'DRH'],
+  'Téléconseiller': ['Manager', 'Directeur', 'DRH'],
+  'Magasinier': ['Manager', 'Directeur', 'DRH'],
+  'Comptable': ['Manager', 'Directeur', 'DRH'],
+  'Assistant de Direction': ['Manager', 'Directeur', 'DRH'],
+  'Formateur': ['Manager', 'Directeur', 'DRH'],
+  "Chef d'équipe": ['Manager', 'Directeur', 'DRH'],
+  'Planificateur': ['Manager', 'Directeur', 'DRH'],
+  'Support Technique': ['Manager', 'Directeur', 'DRH'],
+
+  // ===== POSTES SENIORS / EXPERTS =====
+  // Circuit avec DAF (impact budget/salaire plus élevé)
+  'Data Scientist': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'DevOps Engineer': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'UI/UX Designer': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'Contrôleur de Gestion': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'Analyste Financier': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'Business Developer': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'Account Manager': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  "Chargé d'Affaires": ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'Office Manager': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'Ingénieur Production': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'Responsable Logistique': ['Manager', 'Directeur', 'DRH', 'DAF'],
+  'Supply Chain Manager': ['Manager', 'Directeur', 'DRH', 'DAF'],
+
+  // ===== POSTES STRATEGIQUES / SENSIBLES =====
+  // Circuit avec DG (validation finale par Direction Générale)
+  'Chef de Projet IT': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Architecte Logiciel': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Product Owner': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Scrum Master': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Cyber Security Analyst': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Responsable Marketing': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Content Manager': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'SEO Specialist': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Marketing Digital': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Chef de Produit': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Responsable Commercial': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Auditeur Interne': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+  'Responsable Service Client': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
+
+  // ===== POSTES DE DIRECTION =====
+  // Circuit court : DRH → DAF → DG (pas de manager)
+  'Responsable RH': ['DRH', 'DAF', 'DGA/DG'],
+  'Chargé de Recrutement': ['DRH', 'DAF', 'DGA/DG'],
+  'Gestionnaire de Paie': ['DRH', 'DAF', 'DGA/DG'],
+  'HR Business Partner': ['DRH', 'DAF', 'DGA/DG'],
+  'Directeur Commercial': ['DRH', 'DAF', 'DGA/DG'],
+  'Directeur Financier': ['DRH', 'DAF', 'DGA/DG'],
+  'Chef Comptable': ['DRH', 'DAF', 'DGA/DG'],
+  'Directeur Administratif': ['DRH', 'DAF', 'DGA/DG'],
+  'Administrateur Système': ['DRH', 'DAF', 'DGA/DG'],
+
+  // ===== TOP MANAGEMENT =====
+  // Validation uniquement par DG
+  'Directeur Général': ['DGA/DG'],
+};
+
+// Circuit par défaut pour les postes non listés
+const defaultValidationFlow = ['Manager', 'Directeur', 'DRH'];
+
 const skillSuggestions = [
   'React', 'Node.js', 'TypeScript', 'Python', 'Java',
   'AWS', 'Docker', 'Kubernetes', 'Agile', 'Scrum',
@@ -320,7 +497,7 @@ function RecruitmentCauseDetails({
 
   useEffect(() => {
     onDataChange(details);
-  }, [details]);
+  }, [details, onDataChange]);
 
   if (!reasonConfig) return null;
 
@@ -329,13 +506,6 @@ function RecruitmentCauseDetails({
   const handleChange = (field: keyof RecruitmentCauseDetail, value: any) => {
     setDetails(prev => ({ ...prev, [field]: value }));
   };
-
-  const urgencyLevels = [
-    { value: 'low', label: 'Basse', color: 'green', description: 'Pas d\'urgence particulière' },
-    { value: 'medium', label: 'Moyenne', color: 'yellow', description: 'À traiter dans les semaines à venir' },
-    { value: 'high', label: 'Haute', color: 'orange', description: 'À traiter rapidement' },
-    { value: 'critical', label: 'Critique', color: 'red', description: 'Urgence absolue' }
-  ];
 
   return (
     <div className="mt-6 space-y-6">
@@ -360,7 +530,7 @@ function RecruitmentCauseDetails({
         {/* Sous-motif */}
         <div>
           <label className="block mb-2 text-sm font-medium text-slate-700">
-            type <span className="text-red-500">*</span>
+            Type <span className="text-red-500">*</span>
           </label>
           <select
             value={details.subReason}
@@ -379,8 +549,22 @@ function RecruitmentCauseDetails({
           )}
         </div>
 
-        
-        
+        {/* Niveau d'urgence */}
+        <div>
+          <label className="block mb-2 text-sm font-medium text-slate-700">
+            Niveau d'urgence <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={details.urgencyLevel}
+            onChange={(e) => handleChange('urgencyLevel', e.target.value as any)}
+            className="w-full px-4 py-3 border rounded-lg border-slate-300/70"
+          >
+            <option value="low">Basse - Pas d'urgence particulière</option>
+            <option value="medium">Moyenne - À traiter dans les semaines à venir</option>
+            <option value="high">Haute - À traiter rapidement</option>
+            <option value="critical">Critique - Urgence absolue</option>
+          </select>
+        </div>
       </div>
 
       {/* Questions contextuelles */}
@@ -399,7 +583,7 @@ function RecruitmentCauseDetails({
               </label>
               <input
                 type="text"
-                value={details[`answer${index}`] || ''}
+                value={details[`answer${index}` as keyof RecruitmentCauseDetail] || ''}
                 onChange={(e) => handleChange(`answer${index}` as any, e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg border-slate-300/70"
                 placeholder="Votre réponse..."
@@ -427,23 +611,16 @@ function RecruitmentCauseDetails({
           <p className="mt-1 text-sm text-red-600">{errors.description}</p>
         )}
       </div>
-
-
- 
-      {/* Poste lié (pour remplacement/mutation) */}
-      {(reason === 'Remplacement' || reason === 'Départ') }
-
-     
-      
     </div>
   );
 }
 
 export default function NewRequestModal({ onClose, onSuccess }: Props) {
-  const { profile } = useAuth();
+  const { user, token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [recruitmentDetails, setRecruitmentDetails] = useState<any>(null);
+  const [validationFlow, setValidationFlow] = useState<string[]>([]);
   
   // États pour les recherches
   const [searchJob, setSearchJob] = useState('');
@@ -457,7 +634,7 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
 
   const [formData, setFormData] = useState({
     title: '',
-    department: profile?.department || '',
+    department: user?.department || '',
     location: '',
     contractType: 'CDI',
     reason: 'Création de poste',
@@ -475,11 +652,11 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
   });
 
   const validationLevels = [
-    { level: 'Manager', color: 'bg-emerald-500', icon: Users },
-    { level: 'Directeur', color: 'bg-blue-500', icon: Building },
-    { level: 'DRH', color: 'bg-violet-500', icon: Shield },
-    { level: 'DAF', color: 'bg-amber-500', icon: DollarSign },
-    { level: 'DGA/DG', color: 'bg-purple-500', icon: Award }
+    { level: 'Manager', color: 'bg-emerald-500', icon: Users, description: 'Validation hiérarchique directe' },
+    { level: 'Directeur', color: 'bg-blue-500', icon: Building, description: 'Validation direction' },
+    { level: 'DRH', color: 'bg-violet-500', icon: Shield, description: 'Validation ressources humaines' },
+    { level: 'DAF', color: 'bg-amber-500', icon: DollarSign, description: 'Validation financière' },
+    { level: 'DGA/DG', color: 'bg-purple-500', icon: Award, description: 'Validation direction générale' }
   ];
 
   useEffect(() => {
@@ -530,9 +707,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
       if (!recruitmentDetails.description) {
         newErrors.description = 'La description détaillée est requise';
       }
-      if ((formData.reason === 'Remplacement' || formData.reason === 'Départ') && !recruitmentDetails.relatedPosition) {
-        newErrors.relatedPosition = 'Le poste/personne concerné est requis';
-      }
     }
     
     setErrors(newErrors);
@@ -541,77 +715,168 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error('Veuillez remplir tous les champs requis');
       return;
     }
-    
+
     setLoading(true);
 
     try {
-      // Construction de l'objet de demande avec les détails enrichis
+      // Déterminer le circuit de validation final
+      let finalValidationFlow = validationFlow;
+      
+      // Si pas de circuit spécifique, déterminer en fonction du type de contrat et du niveau
+      if (finalValidationFlow.length === 0) {
+        // Cas des postes temporaires/stagiaires
+        if (formData.contractType === 'Stage' || 
+            formData.contractType === 'Alternance' || 
+            formData.contractType === 'Intérim' || 
+            formData.contractType === 'CDD Court (<3 mois)' || 
+            formData.contractType === 'Saisonnier' ||
+            formData.level === 'Stagiaire') {
+          finalValidationFlow = ['Manager'];
+        } 
+        // Cas des postes juniors
+        else if (formData.level === 'Junior' || formData.level === 'Confirmé') {
+          finalValidationFlow = ['Manager', 'Directeur', 'DRH'];
+        }
+        // Cas des postes seniors
+        else if (formData.level === 'Senior' || formData.level === 'Expert') {
+          finalValidationFlow = ['Manager', 'Directeur', 'DRH', 'DAF'];
+        }
+        // Cas des postes de direction
+        else if (formData.level === 'Lead' || formData.title.includes('Directeur') || formData.title.includes('Responsable')) {
+          finalValidationFlow = ['DRH', 'DAF', 'DGA/DG'];
+        }
+        // Circuit par défaut
+        else {
+          finalValidationFlow = ['Manager', 'Directeur', 'DRH'];
+        }
+      }
+
+      // S'assurer que le circuit de validation n'est pas vide
+      if (finalValidationFlow.length === 0) {
+        finalValidationFlow = ['Manager', 'Directeur', 'DRH'];
+      }
+
+      // 🔴 CORRECTION: Utiliser les statuts en français comme dans RecruitmentRequestList
+      let status = 'En attente';
+      let current_validation_level = finalValidationFlow[0];
+
+      // Si circuit simplifié (Manager uniquement), on valide directement
+      if (finalValidationFlow.length === 1 && finalValidationFlow[0] === 'Manager') {
+        status = 'Validées';
+        current_validation_level = 'Validé';
+      }
+
+      // Préparer les données pour l'envoi
       const requestData = {
-        title: formData.title,
-        department: formData.department,
-        location: formData.location,
+        // Informations de base
+        title: formData.title.trim(),
+        department: formData.department.trim(),
+        location: formData.location.trim(),
         contract_type: formData.contractType,
+        
+        // Cause du recrutement
         reason: formData.reason,
-        reason_details: recruitmentDetails, // Ajout des détails enrichis
-        budget: formData.budget ? parseInt(formData.budget) : null,
-        required_skills: formData.requiredSkills.split(',').map(s => s.trim()).filter(s => s),
-        description: formData.description,
-        urgent: formData.urgent || (recruitmentDetails?.urgencyLevel === 'high' || recruitmentDetails?.urgencyLevel === 'critical'),
-        status: 'Open',
-        current_validation_level: 'Manager',
-        created_by: profile?.id,
-        created_by_name: profile?.full_name,
-        created_by_role: profile?.role,
-        replacement_name: formData.replacementName,
-        replacement_reason: formData.replacementReason,
-        start_date: formData.startDate,
+        reason_details: recruitmentDetails || {},
+        
+        // Budget et rémunération
+        budget: formData.budget ? parseInt(formData.budget, 10) : null,
+        
+        // Compétences et description
+        required_skills: formData.requiredSkills 
+          ? formData.requiredSkills.split(',').map(s => s.trim()).filter(Boolean)
+          : [],
+        description: formData.description.trim(),
+        
+        // Niveau et expérience
         level: formData.level,
         experience: formData.experience,
-        remote_work: formData.remote,
-        travel_required: formData.travelRequired,
-        estimated_time: (formData.urgent || recruitmentDetails?.urgencyLevel === 'high' || recruitmentDetails?.urgencyLevel === 'critical') ? '15 jours' : '30 jours',
-        priority: recruitmentDetails?.urgencyLevel || (formData.urgent ? 'high' : 'medium')
+        
+        // Dates et conditions
+        start_date: formData.startDate,
+        remote_work: formData.remote || false,
+        travel_required: formData.travelRequired || false,
+        
+        // Urgence et priorité
+        urgent: formData.urgent || (recruitmentDetails?.urgencyLevel === 'high' || recruitmentDetails?.urgencyLevel === 'critical'),
+        priority: recruitmentDetails?.urgencyLevel || (formData.urgent ? 'high' : 'medium'),
+        
+        // Informations de remplacement (si applicable)
+        replacement_name: formData.replacementName?.trim() || null,
+        replacement_reason: formData.replacementReason?.trim() || null,
+        
+        // Informations créateur
+        created_by: user?.id,
+        created_by_name: user?.full_name || user?.email,
+        created_by_role: user?.role || 'Manager',
+        
+        // CIRCUIT DE VALIDATION COMPLET
+        validation_flow: finalValidationFlow,
+        
+        // ✅ STATUTS EN FRANÇAIS (corrigé)
+        status: status,
+        current_validation_level: current_validation_level,
+        
+        // Métadonnées supplémentaires
+        created_at: new Date().toISOString()
       };
 
-      const { error } = await supabase.from('recruitment_requests').insert(requestData);
-
-      if (error) throw error;
-      
-      toast.success('Demande créée avec succès !', {
-        duration: 4000,
-        position: 'top-right',
-        icon: '✅',
-        style: {
-          background: '#10b981',
-          color: '#fff',
-          padding: '16px',
-          borderRadius: '12px',
-          fontSize: '14px',
-        }
+      // Log pour le débogage
+      console.log('📤 Envoi de la demande de recrutement:', {
+        title: requestData.title,
+        department: requestData.department,
+        validation_flow: requestData.validation_flow,
+        status: requestData.status,
+        current_level: requestData.current_validation_level,
+        isAutoValidated: finalValidationFlow.length === 1 && finalValidationFlow[0] === 'Manager'
       });
+
+      // Envoi de la requête
+      const res = await fetch('http://localhost:5000/api/recruitment/new-request', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      // Récupération de la réponse
+      const responseData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(responseData.message || `Erreur ${res.status}: ${res.statusText}`);
+      }
+
+      // Message de succès adapté
+      if (status === 'Validées') {
+        toast.success('Demande validée automatiquement !');
+      } else {
+        toast.success('Demande de recrutement créée avec succès !');
+      }
       
+      // Appeler les callbacks de succès
       onSuccess();
       onClose();
-    } catch (error) {
-      console.error('Error creating request:', error);
+
+    } catch (err: any) {
+      // Gestion des erreurs
+      console.error('❌ Erreur lors de la création de la demande:', err);
       
-      toast.error('Erreur lors de la création de la demande', {
-        duration: 4000,
-        position: 'top-right',
-        icon: '❌',
-        style: {
-          background: '#ef4444',
-          color: '#fff',
-          padding: '16px',
-          borderRadius: '12px',
-          fontSize: '14px',
-        }
-      });
+      // Message d'erreur personnalisé selon le type d'erreur
+      if (err.message.includes('401')) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+      } else if (err.message.includes('403')) {
+        toast.error('Vous n\'avez pas les droits pour effectuer cette action.');
+      } else if (err.message.includes('500')) {
+        toast.error('Erreur serveur. Veuillez réessayer plus tard.');
+      } else {
+        toast.error(err.message || 'Erreur lors de la création de la demande');
+      }
     } finally {
       setLoading(false);
     }
@@ -640,6 +905,45 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
     const newSkills = currentSkills.filter(s => s !== skill).join(', ');
     handleChange('requiredSkills', newSkills);
   };
+
+  // Fonction pour déterminer le circuit de validation en fonction du poste et du type de contrat
+  const getValidationFlow = (jobTitle: string, contractType: string): string[] => {
+    // Vérifier d'abord si le poste a un circuit spécifique
+    const specificFlow = validationFlowsByJob[jobTitle];
+    if (specificFlow) {
+      return specificFlow;
+    }
+
+    // Sinon, déterminer en fonction du type de contrat et du niveau
+    if (contractType === 'Stage' || contractType === 'Alternance' || contractType === 'Intérim' || contractType === 'CDD Court (<3 mois)' || contractType === 'Saisonnier') {
+      return ['Manager'];
+    }
+
+    // Circuit par défaut
+    return defaultValidationFlow;
+  };
+
+  // Fonction pour gérer la sélection d'un poste et son circuit
+  const handleJobSelect = (job: string) => {
+    // Met à jour le titre du poste dans le formulaire
+    handleChange('title', job);
+
+    // Récupère le circuit de validation correspondant au poste et au type de contrat
+    const circuit = getValidationFlow(job, formData.contractType);
+    setValidationFlow(circuit);
+
+    // Ferme le dropdown et vide la recherche
+    setShowJobDropdown(false);
+    setSearchJob('');
+  };
+
+  // Mettre à jour le circuit quand le type de contrat change
+  useEffect(() => {
+    if (formData.title) {
+      const circuit = getValidationFlow(formData.title, formData.contractType);
+      setValidationFlow(circuit);
+    }
+  }, [formData.contractType, formData.title]);
 
   // Filtrer les listes en fonction de la recherche
   const filteredJobs = jobTitlesList.filter(job => 
@@ -746,11 +1050,7 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                           <button
                             key={job}
                             type="button"
-                            onClick={() => {
-                              handleChange('title', job);
-                              setShowJobDropdown(false);
-                              setSearchJob('');
-                            }}
+                            onClick={() => handleJobSelect(job)}
                             className="flex items-start w-full px-4 py-3 space-x-3 text-left transition-colors hover:bg-emerald-50"
                           >
                             <Briefcase className="w-4 h-4 mt-1 text-emerald-600" />
@@ -1242,19 +1542,44 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
               <div className="flex items-center justify-between">
                 {validationLevels.map((item, index) => {
                   const Icon = item.icon;
+                  const isActive = validationFlow.length === 0 || validationFlow.includes(item.level);
+                  
                   return (
-                    <div key={item.level} className="relative flex flex-col items-center">
-                      <div className={`w-10 h-10 rounded-full ${item.color} flex items-center justify-center shadow-lg z-10`}>
-                        <Icon className="w-5 h-5 text-white" />
+                    <div key={item.level} className="relative flex flex-col items-center group">
+                      <div className={`w-12 h-12 rounded-full ${item.color} flex items-center justify-center shadow-lg z-10 ${isActive ? 'opacity-100 ring-4 ring-offset-2 ring-' + item.color.replace('bg-', '') + '/30' : 'opacity-40'}`}>
+                        <Icon className="w-6 h-6 text-white" />
                       </div>
-                      <p className="mt-2 text-xs font-medium text-slate-700">{item.level}</p>
+                      <p className={`mt-2 text-xs font-medium ${isActive ? 'text-slate-700' : 'text-slate-400'}`}>{item.level}</p>
+                      <div className="absolute hidden w-48 p-2 mb-2 text-xs text-center text-white rounded-lg bottom-full group-hover:block bg-slate-800">
+                        {item.description}
+                      </div>
                       {index < validationLevels.length - 1 && (
-                        <div className="absolute top-5 left-12 w-16 h-0.5 bg-slate-300"></div>
+                        <div className={`absolute top-6 left-12 w-16 h-0.5 ${isActive && validationLevels[index + 1] && (validationFlow.length === 0 || validationFlow.includes(validationLevels[index + 1].level)) ? 'bg-emerald-400' : 'bg-slate-300'}`}></div>
                       )}
                     </div>
                   );
                 })}
               </div>
+              {validationFlow.length > 0 ? (
+                <div className="p-4 mt-6 border bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border-emerald-200">
+                  <p className="text-sm text-center text-emerald-800">
+                    <span className="font-semibold">Circuit spécifique pour ce poste :</span>{' '}
+                    {validationFlow.join(' → ')}
+                  </p>
+                  {validationFlow.length === 1 && validationFlow[0] === 'Manager' && (
+                    <p className="mt-2 text-xs text-center text-emerald-600">
+                      ✅ Poste à validation simplifiée (stage, alternance, CDD court, etc.)
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 mt-6 border bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border-slate-200">
+                  <p className="text-sm text-center text-slate-600">
+                    <span className="font-semibold">Circuit standard :</span>{' '}
+                    Manager → Directeur → DRH
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Boutons d'action */}
