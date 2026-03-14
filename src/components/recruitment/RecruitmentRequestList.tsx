@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Eye, CheckCircle, Zap, Building, DollarSign, Calendar,
   Filter, Download, ChevronLeft, ChevronRight, Search, XCircle, AlertCircle,
-  Plus
+  Plus, X, FileText, Printer, Mail, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import RequestValidationModal from './RequestValidationModal';
@@ -33,6 +33,18 @@ interface Request {
   validation_history?: any[];
 }
 
+interface FilterOptions {
+  department: string;
+  location: string;
+  contract_type: string;
+  level: string;
+  urgent: boolean | null;
+  dateFrom: string;
+  dateTo: string;
+  minBudget: number | null;
+  maxBudget: number | null;
+}
+
 interface Props {
   onUpdate: () => void;
   searchTerm: string;
@@ -42,6 +54,7 @@ interface Props {
 export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequest }: Props) {
   const { user } = useAuth();
   const [requests, setRequests] = useState<Request[]>([]);
+  const [filteredRequests, setFilteredRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -49,6 +62,26 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<Request | null>(null);
+  
+  // États pour les filtres avancés
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>({
+    department: '',
+    location: '',
+    contract_type: '',
+    level: '',
+    urgent: null,
+    dateFrom: '',
+    dateTo: '',
+    minBudget: null,
+    maxBudget: null
+  });
+
+  // États pour les options de filtres
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [contractTypes, setContractTypes] = useState<string[]>([]);
+  const [levels, setLevels] = useState<string[]>([]);
 
   const itemsPerPage = 10;
 
@@ -56,9 +89,22 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
     fetchRequests();
   }, [page, selectedStatus, searchTerm]);
 
+  useEffect(() => {
+    if (requests.length > 0) {
+      applyFilters();
+      extractFilterOptions();
+    }
+  }, [requests, filters]);
+
   const fetchRequests = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      if (!token) {
+        toast.error('Veuillez vous connecter');
+        return;
+      }
+
       const params = new URLSearchParams({
         page: page.toString(),
         limit: itemsPerPage.toString(),
@@ -68,12 +114,18 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
 
       const res = await fetch(`http://localhost:5000/api/recruitmentRequests?${params}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
-      const json = await res.json();
 
+      if (res.status === 401) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        return;
+      }
+
+      const json = await res.json();
       setRequests(json.data || []);
+      setFilteredRequests(json.data || []);
       setTotalPages(json.totalCount ? Math.ceil(json.totalCount / itemsPerPage) : 1);
     } catch (error) {
       console.error('Erreur fetching requests:', error);
@@ -83,15 +135,158 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
     }
   };
 
+  const extractFilterOptions = () => {
+    const uniqueDepts = [...new Set(requests.map(r => r.department))].sort();
+    const uniqueLocs = [...new Set(requests.map(r => r.location))].sort();
+    const uniqueContracts = [...new Set(requests.map(r => r.contract_type))].sort();
+    const uniqueLevels = [...new Set(requests.map(r => r.level))].sort();
+
+    setDepartments(uniqueDepts);
+    setLocations(uniqueLocs);
+    setContractTypes(uniqueContracts);
+    setLevels(uniqueLevels);
+  };
+
+  const applyFilters = () => {
+    let filtered = [...requests];
+
+    // Filtre par département
+    if (filters.department) {
+      filtered = filtered.filter(r => r.department === filters.department);
+    }
+
+    // Filtre par localisation
+    if (filters.location) {
+      filtered = filtered.filter(r => r.location === filters.location);
+    }
+
+    // Filtre par type de contrat
+    if (filters.contract_type) {
+      filtered = filtered.filter(r => r.contract_type === filters.contract_type);
+    }
+
+    // Filtre par niveau
+    if (filters.level) {
+      filtered = filtered.filter(r => r.level === filters.level);
+    }
+
+    // Filtre urgent
+    if (filters.urgent !== null) {
+      filtered = filtered.filter(r => r.urgent === filters.urgent);
+    }
+
+    // Filtre par date
+    if (filters.dateFrom) {
+      filtered = filtered.filter(r => new Date(r.created_at) >= new Date(filters.dateFrom));
+    }
+    if (filters.dateTo) {
+      filtered = filtered.filter(r => new Date(r.created_at) <= new Date(filters.dateTo));
+    }
+
+    // Filtre par budget
+    if (filters.minBudget !== null) {
+      filtered = filtered.filter(r => (r.budget || 0) >= filters.minBudget!);
+    }
+    if (filters.maxBudget !== null) {
+      filtered = filtered.filter(r => (r.budget || 0) <= filters.maxBudget!);
+    }
+
+    setFilteredRequests(filtered);
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      department: '',
+      location: '',
+      contract_type: '',
+      level: '',
+      urgent: null,
+      dateFrom: '',
+      dateTo: '',
+      minBudget: null,
+      maxBudget: null
+    });
+    setFilteredRequests(requests);
+    toast.success('Filtres réinitialisés');
+  };
+
+  const exportToCSV = () => {
+    try {
+      const dataToExport = filteredRequests.length > 0 ? filteredRequests : requests;
+      
+      // Définir les colonnes à exporter
+      const headers = [
+        'Titre',
+        'Département',
+        'Localisation',
+        'Type de contrat',
+        'Niveau',
+        'Expérience',
+        'Budget (DT)',
+        'Statut',
+        'Niveau validation',
+        'Urgent',
+        'Télétravail',
+        'Date création',
+        'Créé par'
+      ];
+
+      // Convertir les données en lignes CSV
+      const rows = dataToExport.map(request => [
+        request.title,
+        request.department,
+        request.location,
+        request.contract_type,
+        request.level,
+        request.experience,
+        request.budget || '',
+        request.status,
+        request.current_validation_level,
+        request.urgent ? 'Oui' : 'Non',
+        request.remote_work ? 'Oui' : 'Non',
+        new Date(request.created_at).toLocaleDateString('fr-FR'),
+        request.created_by_name
+      ]);
+
+      // Construire le contenu CSV
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Créer et télécharger le fichier
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `demandes_recrutement_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`${dataToExport.length} demandes exportées avec succès`);
+    } catch (error) {
+      console.error('Erreur export:', error);
+      toast.error('Erreur lors de l\'export');
+    }
+  };
+
+  const exportToExcel = () => {
+    // Même logique que CSV mais avec extension .xlsx
+    exportToCSV(); // Pour l'instant, on utilise CSV
+  };
+
   const handleDelete = async (id: string) => {
     try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      
       const res = await fetch(`http://localhost:5000/api/recruitmentRequests/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
-      const json = await res.json();
 
       if (res.ok) {
         toast.success('Demande supprimée avec succès');
@@ -99,10 +294,9 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         fetchRequests();
         onUpdate();
       } else {
-        throw new Error(json.error || 'Erreur suppression');
+        throw new Error('Erreur suppression');
       }
     } catch (error) {
-      console.error('Error deleting request:', error);
       toast.error('Erreur lors de la suppression');
     }
   };
@@ -114,7 +308,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
     if (canValidate) {
       setSelectedRequest(request);
     } else {
-      toast.error(`Vous ne pouvez pas valider cette demande. Niveau requis: ${request.current_validation_level}`);
+      toast.error(`Niveau requis: ${request.current_validation_level}`);
     }
   };
 
@@ -188,7 +382,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
       cell: ({ row }: { row: any }) => (
         <div className="flex items-center space-x-2">
           <DollarSign className="w-4 h-4 text-slate-400" />
-          <span>{row.original.budget?.toLocaleString()} €</span>
+          <span>{row.original.budget?.toLocaleString()} DT</span>
         </div>
       ),
     },
@@ -205,19 +399,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
             <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(status)}`}>
               {status}
             </span>
-          );
-        }
-        
-        if (status === 'En cours') {
-          return (
-            <div className="flex flex-col space-y-1">
-              <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(status)}`}>
-                {status}
-              </span>
-              <span className={`px-2 py-0.5 rounded-full text-xs ${getValidationLevelColor(level)}`}>
-                {level}
-              </span>
-            </div>
           );
         }
         
@@ -259,7 +440,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
             {canValidate && (
               <button
                 onClick={() => handleValidationClick(request)}
-                className="flex items-center px-4 py-2 space-x-2 text-sm font-medium text-white transition-all rounded-lg shadow-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+                className="flex items-center px-4 py-2 space-x-2 text-sm font-medium text-white rounded-lg shadow-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
               >
                 <CheckCircle className="w-4 h-4" />
                 <span>Valider</span>
@@ -267,7 +448,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
             )}
             <button
               onClick={() => setShowDetailsModal(request)}
-              className="flex items-center px-4 py-2 space-x-2 text-sm font-medium transition-colors rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+              className="flex items-center px-4 py-2 space-x-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
             >
               <Eye className="w-4 h-4" />
               <span>Détails</span>
@@ -288,7 +469,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
 
   return (
     <div className="space-y-6">
-      {/* Filtres et bouton nouvelle demande */}
+      {/* Filtres rapides et boutons d'action */}
       <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="flex flex-wrap gap-2">
           {statuses.map((status) => (
@@ -307,17 +488,229 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         </div>
 
         <div className="flex items-center space-x-3">
-         
-          <button className="flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">
+          
+          
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className={`flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg ${
+              showAdvancedFilters 
+                ? 'bg-emerald-500 text-white' 
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
             <Filter className="w-4 h-4" />
             <span>Filtres avancés</span>
           </button>
-          <button className="flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">
-            <Download className="w-4 h-4" />
-            <span>Exporter</span>
-          </button>
+
+          {/* Menu d'export */}
+          <div className="relative group">
+            <button className="flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200">
+              <Download className="w-4 h-4" />
+              <span>Exporter</span>
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            
+            {/* Dropdown d'export */}
+            <div className="absolute right-0 z-10 hidden w-48 mt-2 bg-white border rounded-lg shadow-xl group-hover:block">
+              <button
+                onClick={exportToCSV}
+                className="flex items-center w-full px-4 py-3 space-x-3 text-left hover:bg-slate-50"
+              >
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span>Exporter en CSV</span>
+              </button>
+              <button
+                onClick={exportToExcel}
+                className="flex items-center w-full px-4 py-3 space-x-3 text-left hover:bg-slate-50"
+              >
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span>Exporter en Excel</span>
+              </button>
+              
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Filtres avancés */}
+      {showAdvancedFilters && (
+        <div className="p-6 bg-white border rounded-xl border-slate-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Filtres avancés</h3>
+            <button
+              onClick={resetFilters}
+              className="px-3 py-1 text-sm rounded-lg text-emerald-600 hover:bg-emerald-50"
+            >
+              Réinitialiser
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {/* Département */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Département
+              </label>
+              <select
+                value={filters.department}
+                onChange={(e) => setFilters({...filters, department: e.target.value})}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+              >
+                <option value="">Tous</option>
+                {departments.map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Localisation */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Localisation
+              </label>
+              <select
+                value={filters.location}
+                onChange={(e) => setFilters({...filters, location: e.target.value})}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+              >
+                <option value="">Toutes</option>
+                {locations.map(loc => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Type de contrat */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Type de contrat
+              </label>
+              <select
+                value={filters.contract_type}
+                onChange={(e) => setFilters({...filters, contract_type: e.target.value})}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+              >
+                <option value="">Tous</option>
+                {contractTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Niveau */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Niveau
+              </label>
+              <select
+                value={filters.level}
+                onChange={(e) => setFilters({...filters, level: e.target.value})}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+              >
+                <option value="">Tous</option>
+                {levels.map(level => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Urgent */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Urgence
+              </label>
+              <select
+                value={filters.urgent === null ? '' : filters.urgent.toString()}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFilters({
+                    ...filters, 
+                    urgent: value === '' ? null : value === 'true'
+                  });
+                }}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+              >
+                <option value="">Tous</option>
+                <option value="true">Urgent</option>
+                <option value="false">Non urgent</option>
+              </select>
+            </div>
+
+            {/* Date de début */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Date de début
+              </label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+              />
+            </div>
+
+            {/* Date de fin */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Date de fin
+              </label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+              />
+            </div>
+
+            {/* Budget min */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Budget minimum (DT)
+              </label>
+              <input
+                type="number"
+                value={filters.minBudget || ''}
+                onChange={(e) => setFilters({
+                  ...filters, 
+                  minBudget: e.target.value ? parseInt(e.target.value) : null
+                })}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+                placeholder="0"
+              />
+            </div>
+
+            {/* Budget max */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Budget maximum (DT)
+              </label>
+              <input
+                type="number"
+                value={filters.maxBudget || ''}
+                onChange={(e) => setFilters({
+                  ...filters, 
+                  maxBudget: e.target.value ? parseInt(e.target.value) : null
+                })}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300"
+                placeholder="100000"
+              />
+            </div>
+          </div>
+
+          {/* Résumé des filtres */}
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-slate-600">
+              {filteredRequests.length} demande(s) trouvée(s)
+            </p>
+            <button
+              onClick={() => setShowAdvancedFilters(false)}
+              className="px-4 py-2 text-white rounded-lg bg-emerald-600 hover:bg-emerald-700"
+            >
+              Appliquer les filtres
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tableau */}
       <div className="overflow-hidden bg-white border border-slate-200 rounded-xl">
@@ -336,7 +729,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {requests.map((request) => (
+              {(filteredRequests.length > 0 ? filteredRequests : requests).map((request) => (
                 <tr key={request.id} className="transition-colors hover:bg-slate-50">
                   {columns.map((column) => (
                     <td key={column.accessorKey} className="px-6 py-4">
@@ -349,15 +742,15 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
           </table>
         </div>
 
-        {requests.length === 0 && (
+        {(filteredRequests.length === 0 && requests.length === 0) && (
           <div className="py-12 text-center">
             <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100">
               <Search className="w-8 h-8 text-slate-400" />
             </div>
             <h3 className="mb-2 text-lg font-medium text-slate-900">Aucune demande trouvée</h3>
             <p className="text-slate-600">
-              {searchTerm
-                ? 'Aucun résultat pour votre recherche'
+              {searchTerm || Object.values(filters).some(v => v) 
+                ? 'Aucun résultat pour vos critères de recherche'
                 : 'Aucune demande de recrutement pour le moment'}
             </p>
           </div>
@@ -368,7 +761,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-slate-600">
-            Page {page} sur {totalPages} • {requests.length} demandes
+            Page {page} sur {totalPages} • {filteredRequests.length} demandes
           </div>
           <div className="flex items-center space-x-2">
             <button
@@ -378,31 +771,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (page <= 3) {
-                pageNum = i + 1;
-              } else if (page >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = page - 2 + i;
-              }
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setPage(pageNum)}
-                  className={`w-10 h-10 rounded-lg font-medium ${
-                    page === pageNum
-                      ? 'bg-emerald-500 text-white'
-                      : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
             <button
               onClick={() => setPage(page + 1)}
               disabled={page === totalPages}
@@ -414,7 +782,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         </div>
       )}
 
-      {/* Modal de validation */}
+      {/* Modals */}
       {selectedRequest && (
         <RequestValidationModal
           request={selectedRequest}
@@ -427,7 +795,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         />
       )}
 
-      {/* Modal de détails */}
       {showDetailsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden border border-white/30">
@@ -465,14 +832,24 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
                   </div>
                   <div>
                     <label className="text-sm text-slate-600">Budget</label>
-                    <p className="font-semibold text-slate-900">{showDetailsModal.budget?.toLocaleString()} €</p>
+                    <p className="font-semibold text-slate-900">{showDetailsModal.budget?.toLocaleString()} DT</p>
                   </div>
-                </div>
-                <div>
-                  <label className="text-sm text-slate-600">Statut</label>
-                  <p className="font-semibold text-slate-900">
-                    {showDetailsModal.status}
-                  </p>
+                  <div>
+                    <label className="text-sm text-slate-600">Type de contrat</label>
+                    <p className="font-semibold text-slate-900">{showDetailsModal.contract_type}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-slate-600">Niveau</label>
+                    <p className="font-semibold text-slate-900">{showDetailsModal.level}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-slate-600">Expérience</label>
+                    <p className="font-semibold text-slate-900">{showDetailsModal.experience}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-slate-600">Télétravail</label>
+                    <p className="font-semibold text-slate-900">{showDetailsModal.remote_work ? 'Oui' : 'Non'}</p>
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm text-slate-600">Description</label>

@@ -12,6 +12,7 @@ import NewRequestModal from './NewRequestModal';
 import JobOffersList from './JobOffersList';
 import CandidatesList from './CandidatesList';
 import InterviewEvaluationList from './InterviewEvaluationList';
+import toast from 'react-hot-toast';
 
 type View = 'requests' | 'validate' | 'offers' | 'candidates' | 'interviews';
 
@@ -26,42 +27,74 @@ export default function RecruitmentModule() {
     totalCandidates: 0,
     interviews: 0,
   });
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchStats();
   }, []);
 
-  const fetchStats = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      
-      const headers = { 'Authorization': `Bearer ${token}` };
-      
-      const [pendingRes, inProgressRes, validatedRes] = await Promise.all([
-        fetch('http://localhost:5000/api/recruitmentRequests?status=En attente&limit=1', { headers }),
-        fetch('http://localhost:5000/api/recruitmentRequests?status=En cours&limit=1', { headers }),
-        fetch('http://localhost:5000/api/recruitmentRequests?status=Validées&limit=1', { headers })
-      ]);
-
-      const [pendingData, inProgressData, validatedData] = await Promise.all([
-        pendingRes.json(),
-        inProgressRes.json(),
-        validatedRes.json()
-      ]);
-
-      setStats({
-        openRequests: (pendingData.totalCount || 0) + (inProgressData.totalCount || 0),
-        pendingValidations: inProgressData.totalCount || 0,
-        activeOffers: validatedData.totalCount || 0,
-        totalCandidates: 0,
-        interviews: 0,
-      });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
+const fetchStats = async () => {
+  setLoading(true);
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
     }
-  };
+
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    console.log('🔍 Récupération des stats...');
+
+    // ✅ URLs CORRECTES selon votre montage
+    const BASE_URL = 'http://localhost:5000/api/recruitmentRequests';
+    
+    // 1. Compter les demandes en attente
+    const pendingRes = await fetch(`${BASE_URL}/requests/by-status/pending`, { headers });
+    const pendingData = await pendingRes.json();
+    console.log('📊 Demandes en attente:', pendingData);
+
+    // 2. Compter les demandes en cours
+    const inProgressRes = await fetch(`${BASE_URL}/requests/by-status/in-progress`, { headers });
+    const inProgressData = await inProgressRes.json();
+    console.log('📊 Demandes en cours:', inProgressData);
+
+    // 3. Compter les demandes validées
+    const validatedRes = await fetch(`${BASE_URL}/requests/by-status/validated`, { headers });
+    const validatedData = await validatedRes.json();
+    console.log('📊 Demandes validées:', validatedData);
+
+    // 4. Compter les validations en attente pour l'utilisateur connecté
+    let pendingValidations = 0;
+    if (user?.role) {
+      const pendingForUserRes = await fetch(
+        `${BASE_URL}/requests/pending-for-user?role=${user.role}`, 
+        { headers }
+      );
+      const pendingForUserData = await pendingForUserRes.json();
+      console.log(`📊 Validations en attente pour ${user.role}:`, pendingForUserData);
+      pendingValidations = pendingForUserData.count || 0;
+    }
+
+    const newStats = {
+      openRequests: (pendingData.count || 0) + (inProgressData.count || 0),
+      pendingValidations: pendingValidations,
+      activeOffers: validatedData.count || 0,
+      totalCandidates: 0,
+      interviews: 0,
+    };
+
+    console.log('✅ Stats mises à jour:', newStats);
+    setStats(newStats);
+
+  } catch (error) {
+    console.error('❌ Error fetching stats:', error);
+    toast.error('Erreur lors du chargement des statistiques');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const views = [
     { 
@@ -144,7 +177,7 @@ export default function RecruitmentModule() {
               </div>
             </div>
             
-            {/* Statistiques */}
+            {/* Statistiques en ligne */}
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
                 <div className="p-2 rounded-lg bg-emerald-100">
@@ -152,7 +185,13 @@ export default function RecruitmentModule() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Demandes ouvertes</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.openRequests}</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {loading ? (
+                      <span className="inline-block w-8 h-6 bg-gray-200 rounded animate-pulse"></span>
+                    ) : (
+                      stats.openRequests
+                    )}
+                  </p>
                 </div>
               </div>
               
@@ -163,7 +202,13 @@ export default function RecruitmentModule() {
                   </div>
                   <div>
                     <p className="text-sm text-slate-500">À valider</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.pendingValidations}</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {loading ? (
+                        <span className="inline-block w-8 h-6 bg-gray-200 rounded animate-pulse"></span>
+                      ) : (
+                        stats.pendingValidations
+                      )}
+                    </p>
                   </div>
                 </div>
               )}
@@ -174,7 +219,13 @@ export default function RecruitmentModule() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Offres actives</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.activeOffers}</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {loading ? (
+                      <span className="inline-block w-8 h-6 bg-gray-200 rounded animate-pulse"></span>
+                    ) : (
+                      stats.activeOffers
+                    )}
+                  </p>
                 </div>
               </div>
               
@@ -184,7 +235,13 @@ export default function RecruitmentModule() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Candidats</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.totalCandidates}</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {loading ? (
+                      <span className="inline-block w-8 h-6 bg-gray-200 rounded animate-pulse"></span>
+                    ) : (
+                      stats.totalCandidates
+                    )}
+                  </p>
                 </div>
               </div>
               
@@ -194,7 +251,13 @@ export default function RecruitmentModule() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Entretiens</p>
-                  <p className="text-2xl font-bold text-slate-900">{stats.interviews}</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {loading ? (
+                      <span className="inline-block w-8 h-6 bg-gray-200 rounded animate-pulse"></span>
+                    ) : (
+                      stats.interviews
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
@@ -274,13 +337,17 @@ export default function RecruitmentModule() {
                 >
                   <Icon className="w-5 h-5" />
                   <span>{view.label}</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    isActive
-                      ? getCountClasses()
-                      : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {view.count}
-                  </span>
+                  {loading ? (
+                    <span className="w-5 h-5 bg-gray-200 rounded-full animate-pulse"></span>
+                  ) : (
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      isActive
+                        ? getCountClasses()
+                        : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {view.count}
+                    </span>
+                  )}
                 </button>
               );
             })}

@@ -601,6 +601,190 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// ============================================
+// ROUTES POUR LES COMPTEURS (STATISTIQUES)
+// ============================================
+
+// GET /api/recruitment/requests/by-status/pending - Compter les demandes en attente
+router.get('/requests/by-status/pending', async (req, res) => {
+  try {
+    // Vos status dans la base sont : 'En attente de validation', 'Open'
+    const query = `
+      SELECT COUNT(*) FROM recruitment_requests 
+      WHERE status IN ('En attente')
+    `;
+    
+    const result = await pool.query(query);
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (err) {
+    console.error('❌ Erreur count pending:', err);
+    res.status(500).json({ error: 'Erreur serveur', count: 0 });
+  }
+});
+
+// GET /api/recruitment/requests/by-status/in-progress - Compter les demandes en cours
+router.get('/requests/by-status/in-progress', async (req, res) => {
+  try {
+    // Vos status dans la base pour "en cours"
+    const query = `
+      SELECT COUNT(*) FROM recruitment_requests 
+      WHERE status IN ('En cours')
+    `;
+    
+    const result = await pool.query(query);
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (err) {
+    console.error('❌ Erreur count in-progress:', err);
+    res.status(500).json({ error: 'Erreur serveur', count: 0 });
+  }
+});
+
+// GET /api/recruitment/requests/by-status/validated - Compter les demandes validées
+router.get('/requests/by-status/validated', async (req, res) => {
+  try {
+    // Vos status dans la base pour "validé"
+    const query = `
+      SELECT COUNT(*) FROM recruitment_requests 
+      WHERE status IN ('Validées') 
+         OR current_validation_level = 'Validé'
+    `;
+    
+    const result = await pool.query(query);
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (err) {
+    console.error('❌ Erreur count validated:', err);
+    res.status(500).json({ error: 'Erreur serveur', count: 0 });
+  }
+});
+
+// GET /api/recruitment/requests/pending-for-user - Compter les validations en attente pour un rôle
+router.get('/requests/pending-for-user', async (req, res) => {
+  try {
+    const { role } = req.query;
+    
+    if (!role) {
+      return res.json({ count: 0 });
+    }
+
+    const query = `
+      SELECT COUNT(*) FROM recruitment_requests 
+      WHERE current_validation_level = $1 
+      AND status IN ('En attente','En cours', 'Validées')
+    `;
+    
+    const result = await pool.query(query, [role]);
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (err) {
+    console.error('❌ Erreur pending for user:', err);
+    res.status(500).json({ error: 'Erreur serveur', count: 0 });
+  }
+});
+
+// GET /api/recruitment/requests/count - Route générique
+router.get('/requests/count', async (req, res) => {
+  try {
+    const { status, validation_level } = req.query;
+    let query = 'SELECT COUNT(*) FROM recruitment_requests WHERE 1=1';
+    const values = [];
+    let paramCount = 1;
+
+    if (status) {
+      // Gestion spéciale pour certains status
+      if (status === 'En attente') {
+        query += ` AND (status = $${paramCount} OR status = $${paramCount+1})`;
+        values.push('En attente de validation', 'Open');
+        paramCount += 2;
+      } else if (status === 'En cours') {
+        query += ` AND (status = $${paramCount} OR status = $${paramCount+1})`;
+        values.push('En cours', 'InProgress');
+        paramCount += 2;
+      } else if (status === 'Validées') {
+        query += ` AND (status = $${paramCount} OR current_validation_level = $${paramCount+1})`;
+        values.push('Validated', 'Validé');
+        paramCount += 2;
+      } else {
+        query += ` AND status = $${paramCount}`;
+        values.push(status);
+        paramCount++;
+      }
+    }
+
+    if (validation_level) {
+      query += ` AND current_validation_level = $${paramCount}`;
+      values.push(validation_level);
+      paramCount++;
+    }
+
+    const result = await pool.query(query, values);
+    res.json({ count: parseInt(result.rows[0].count) });
+    
+  } catch (err) {
+    console.error('❌ Erreur count requests:', err);
+    res.status(500).json({ error: 'Erreur serveur', count: 0 });
+  }
+});
+
+// GET /api/recruitment/requests/stats - Récupérer toutes les statistiques en une seule requête
+router.get('/requests/stats', async (req, res) => {
+  try {
+    const { role } = req.query;
+    
+    // Requête pour compter les demandes en attente
+    const pendingQuery = `
+      SELECT COUNT(*) FROM recruitment_requests 
+      WHERE status IN ('En attente')
+    `;
+    
+    // Requête pour compter les demandes en cours
+    const inProgressQuery = `
+      SELECT COUNT(*) FROM recruitment_requests 
+      WHERE status IN ('En cours')
+    `;
+    
+    // Requête pour compter les demandes validées
+    const validatedQuery = `
+      SELECT COUNT(*) FROM recruitment_requests 
+      WHERE status IN ( 'Validées') OR current_validation_level = 'Validé'
+    `;
+    
+    // Requête pour compter les validations en attente pour un rôle spécifique
+    let pendingValidationsQuery = 'SELECT COUNT(*) FROM recruitment_requests WHERE 1=1';
+    const pendingValues = [];
+    
+    if (role) {
+      pendingValidationsQuery += ` AND current_validation_level = $1 AND status IN ('En attente', 'En cours', 'Validées')`;
+      pendingValues.push(role);
+    }
+
+    // Exécuter toutes les requêtes en parallèle
+    const [
+      pendingResult,
+      inProgressResult,
+      validatedResult,
+      pendingValidationsResult
+    ] = await Promise.all([
+      pool.query(pendingQuery),
+      pool.query(inProgressQuery),
+      pool.query(validatedQuery),
+      role ? pool.query(pendingValidationsQuery, pendingValues) : Promise.resolve({ rows: [{ count: 0 }] })
+    ]);
+
+    res.json({
+      openRequests: parseInt(pendingResult.rows[0].count) + parseInt(inProgressResult.rows[0].count),
+      pendingValidations: parseInt(pendingValidationsResult.rows[0].count),
+      activeOffers: parseInt(validatedResult.rows[0].count)
+    });
+
+  } catch (err) {
+    console.error('❌ Erreur stats requests:', err);
+    res.status(500).json({ 
+      openRequests: 0,
+      pendingValidations: 0,
+      activeOffers: 0
+    });
+  }
+});
+
 // PUT /api/recruitmentRequests/:id - Mettre à jour une demande
 router.put('/:id', async (req, res) => {
   try {
