@@ -476,7 +476,7 @@ const validationFlowsByJob: Record<string, string[]> = {
   'Remplacement Court Terme': ['Manager'],
   'Congé Maternité Remplacement': ['Manager'],
   'Congé Maladie Remplacement': ['Manager'],
-  'Technicien Niveau 1': ['Manager'],
+  'Technicien Niveau 1': ['Directeur'],
   "Agent d'entretien": ['Manager'],
   'Manutentionnaire': ['Manager'],
   'Préparateur de commandes': ['Manager'],

@@ -4,7 +4,8 @@ import {
   Users, Zap, FileText, Building, Clock, Tag, 
   ChevronRight, Plus, Filter, Search, Download,
   Share2, Printer, ExternalLink, CheckCircle,
-  XCircle, AlertCircle, Sparkles, Save, X
+  XCircle, AlertCircle, Sparkles, Save, X,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -14,22 +15,27 @@ interface JobOffer {
   reference: string;
   title: string;
   description: string;
-  profile_required: string;
+  profile_required?: string;
   department: string;
-  site: string;
+  location: string;
   contract_type: string;
-  publication_date: string;
-  closing_date: string;
-  status: 'draft' | 'published' | 'closed' | 'archived';
-  salary_range?: string;
-  experience_level: string;
+  publication_date: string | null;
+  application_deadline: string;
+  status: 'draft' | 'published' | 'closed' | 'filled' | 'archived';
+  salary_min?: number;
+  salary_max?: number;
+  experience: string;
+  level: string;
   remote_work: boolean;
-  created_at: string;
-  updated_at: string;
-  recruitment_request_id?: string;
-  published_on: string[];
+  travel_required: boolean;
+  start_date: string;
+  benefits: string[];
+  required_skills: string[];
   views_count: number;
   applications_count: number;
+  request_id?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Props {
@@ -37,88 +43,94 @@ interface Props {
   searchTerm?: string;
 }
 
-// Listes prédéfinies pour les sélections
+// Listes prédéfinies
 const CONTRACT_TYPES = ['CDI', 'CDD', 'Stage', 'Alternance', 'Freelance'];
-const EXPERIENCE_LEVELS = ['Junior (0-2 ans)', 'Mid-Level (2-4 ans)', 'Confirmé (3-5 ans)', 'Senior (5-8 ans)', 'Expert (8+ ans)'];
-const SITES = ['Paris - Siège Social', 'Lyon', 'Marseille', 'Toulouse', 'Bordeaux', 'Lille', 'Nantes'];
-const DEPARTMENTS = ['Direction IT', 'Marketing', 'Commercial', 'Ressources Humaines', 'Direction Financière', 'Direction Administrative', 'Direction Technique'];
+const EXPERIENCE_LEVELS = ['0-1 an', '1-3 ans', '3-5 ans', '5-8 ans', '8+ ans'];
+const LOCATIONS = ['Charguia 1', 'Jbel Wost', 'Ain Zaghouan', 'Tunis', 'Sfax', 'Sousse'];
+const DEPARTMENTS = ['Direction IT', 'Ressources Humaines', 'Finance & Comptabilité', 'Marketing & Communication', 'Commercial & Ventes', 'Direction Générale', 'Production', 'Logistique', 'Service Client'];
+
+// Plateformes de publication
+const PUBLISH_PLATFORMS = [
+  { id: 'internal', name: 'Interne', icon: Building, description: 'Site intranet', color: 'blue' },
+  { id: 'tanitjobs', name: 'Tanitjobs', icon: Globe, description: 'Plateforme d\'emploi externe', color: 'emerald' },
+  { id: 'linkedin', name: 'LinkedIn', icon: Linkedin, description: 'Réseau professionnel', color: 'blue' },
+  { id: 'other', name: 'Autres', icon: Briefcase, description: 'Indeed, Monster, etc.', color: 'amber' }
+];
 
 export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
-  const {user, token } = useAuth();
+  const { user, token } = useAuth();
   const [offers, setOffers] = useState<JobOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOffer, setSelectedOffer] = useState<JobOffer | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [selectedOfferForPublish, setSelectedOfferForPublish] = useState<JobOffer | null>(null);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [filter, setFilter] = useState<'all' | 'draft' | 'published' | 'closed'>('all');
+  const [searchInput, setSearchInput] = useState(searchTerm);
   
   // États pour l'édition
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<JobOffer>>({});
 
-  // Charger les offres au montage
   useEffect(() => {
     fetchOffers();
-  }, []);
+  }, [filter, searchInput]);
 
-  // Récupération des offres depuis la base de données
-const fetchOffers = async () => {
-  setLoading(true);
-  try {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    const headers = { 
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    };
-
-    // Construire l'URL avec les filtres
-    let url = 'http://localhost:5000/api/job-offers';
-    const params = new URLSearchParams();
-    
-    if (filter !== 'all') {
-      params.append('status', filter);
-    }
-    
-    if (searchTerm) {
-      params.append('search', searchTerm);
-    }
-    
-    if (params.toString()) {
-      url += `?${params.toString()}`;
-    }
-
-    console.log('📡 Récupération des offres avec token:', token.substring(0, 10) + '...');
-    
-    const response = await fetch(url, { headers });
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        toast.error('Session expirée. Veuillez vous reconnecter.');
-        // Rediriger vers login si nécessaire
+  const fetchOffers = async () => {
+    setLoading(true);
+    try {
+      const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
+      if (!authToken) {
+        setLoading(false);
         return;
       }
-      throw new Error(`Erreur HTTP: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log(`✅ ${data.length} offre(s) récupérée(s)`);
-    
-    setOffers(data);
-  } catch (error) {
-    console.error('❌ Error fetching job offers:', error);
-    toast.error('Erreur lors du chargement des offres');
-  } finally {
-    setLoading(false);
-  }
-};
 
-  // Fonction pour ouvrir le modal d'édition
+      const headers = { 
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      };
+
+      let url = 'http://localhost:5000/api/job-offers';
+      const params = new URLSearchParams();
+      
+      if (filter !== 'all') {
+        params.append('status', filter);
+      }
+      
+      if (searchInput) {
+        params.append('search', searchInput);
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      console.log('📡 Récupération des offres:', url);
+      
+      const response = await fetch(url, { headers });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Session expirée. Veuillez vous reconnecter.');
+          return;
+        }
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`✅ ${data.length} offre(s) récupérée(s)`, data);
+      
+      setOffers(data);
+    } catch (error) {
+      console.error('❌ Error fetching job offers:', error);
+      toast.error('Erreur lors du chargement des offres');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOpenEditModal = (offer: JobOffer) => {
     setEditingOffer(offer);
     setEditFormData({
@@ -126,17 +138,22 @@ const fetchOffers = async () => {
       description: offer.description,
       profile_required: offer.profile_required,
       department: offer.department,
-      site: offer.site,
+      location: offer.location,
       contract_type: offer.contract_type,
-      salary_range: offer.salary_range || '',
-      experience_level: offer.experience_level,
+      experience: offer.experience,
+      level: offer.level,
+      salary_min: offer.salary_min,
+      salary_max: offer.salary_max,
       remote_work: offer.remote_work,
-      closing_date: offer.closing_date
+      travel_required: offer.travel_required,
+      start_date: offer.start_date,
+      application_deadline: offer.application_deadline,
+      benefits: offer.benefits,
+      required_skills: offer.required_skills
     });
     setShowEditModal(true);
   };
 
-  // Fonction pour gérer les changements dans le formulaire d'édition
   const handleEditFormChange = (field: keyof JobOffer, value: any) => {
     setEditFormData(prev => ({
       ...prev,
@@ -144,14 +161,13 @@ const fetchOffers = async () => {
     }));
   };
 
-  // Fonction pour sauvegarder les modifications
   const handleSaveEdit = async () => {
     if (!editingOffer) return;
 
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
       const headers = { 
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json'
       };
 
@@ -165,15 +181,11 @@ const fetchOffers = async () => {
         throw new Error('Erreur lors de la modification');
       }
 
-      toast.success('Offre modifiée avec succès', {
-        duration: 3000,
-        position: 'top-right',
-      });
-
+      toast.success('Offre modifiée avec succès');
       setShowEditModal(false);
       setEditingOffer(null);
       setShowDetails(false);
-      fetchOffers(); // Recharger les données
+      fetchOffers();
       onUpdate();
 
     } catch (error) {
@@ -182,32 +194,55 @@ const fetchOffers = async () => {
     }
   };
 
-  // Fonction pour publier une offre
-  const handlePublishOffer = async (offerId: string, platforms: string[]) => {
+  const openPublishModal = (offer: JobOffer) => {
+    setSelectedOfferForPublish(offer);
+    setSelectedPlatforms([]);
+    setShowPublishModal(true);
+  };
+
+  const togglePlatform = (platformId: string) => {
+    setSelectedPlatforms(prev => 
+      prev.includes(platformId) 
+        ? prev.filter(p => p !== platformId)
+        : [...prev, platformId]
+    );
+  };
+
+  const handlePublishOffer = async () => {
+    if (!selectedOfferForPublish) return;
+    
+    if (selectedPlatforms.length === 0) {
+      toast.error('Veuillez sélectionner au moins une plateforme');
+      return;
+    }
+    
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
       const headers = { 
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json'
       };
 
-      const response = await fetch(`http://localhost:5000/api/job-offers/${offerId}/publish`, {
+      const response = await fetch(`http://localhost:5000/api/job-offers/${selectedOfferForPublish.id}/publish`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ platforms })
+        body: JSON.stringify({ platforms: selectedPlatforms })
       });
 
       if (!response.ok) {
         throw new Error('Erreur lors de la publication');
       }
 
-      toast.success(`Offre publiée sur: ${platforms.join(', ')}`, {
-        duration: 3000,
-        position: 'top-right',
-      });
+      const platformNames = selectedPlatforms.map(p => {
+        const platform = PUBLISH_PLATFORMS.find(pp => pp.id === p);
+        return platform?.name || p;
+      }).join(', ');
 
+      toast.success(`Offre publiée avec succès sur: ${platformNames}`);
       setShowPublishModal(false);
-      fetchOffers(); // Recharger les données
+      setSelectedOfferForPublish(null);
+      setSelectedPlatforms([]);
+      fetchOffers();
       onUpdate();
 
     } catch (error) {
@@ -216,12 +251,11 @@ const fetchOffers = async () => {
     }
   };
 
-  // Fonction pour clôturer une offre
   const handleCloseOffer = async (offerId: string) => {
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
       const headers = { 
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json'
       };
 
@@ -234,12 +268,8 @@ const fetchOffers = async () => {
         throw new Error('Erreur lors de la clôture');
       }
 
-      toast.success('Offre clôturée avec succès', {
-        duration: 3000,
-        position: 'top-right',
-      });
-
-      fetchOffers(); // Recharger les données
+      toast.success('Offre clôturée avec succès');
+      fetchOffers();
       onUpdate();
 
     } catch (error) {
@@ -248,11 +278,25 @@ const fetchOffers = async () => {
     }
   };
 
+  const formatSalary = (min?: number, max?: number): string => {
+    if (min && max) {
+      return `${min.toLocaleString()} - ${max.toLocaleString()} DT/mois`;
+    }
+    if (min) {
+      return `≥ ${min.toLocaleString()} DT/mois`;
+    }
+    if (max) {
+      return `≤ ${max.toLocaleString()} DT/mois`;
+    }
+    return 'Non spécifié';
+  };
+
   const getStatusColor = (status: JobOffer['status']) => {
     switch (status) {
       case 'draft': return 'bg-amber-100 text-amber-700';
       case 'published': return 'bg-emerald-100 text-emerald-700';
       case 'closed': return 'bg-blue-100 text-blue-700';
+      case 'filled': return 'bg-purple-100 text-purple-700';
       case 'archived': return 'bg-slate-100 text-slate-700';
       default: return 'bg-slate-100 text-slate-700';
     }
@@ -263,6 +307,7 @@ const fetchOffers = async () => {
       case 'draft': return 'Brouillon';
       case 'published': return 'Publiée';
       case 'closed': return 'Clôturée';
+      case 'filled': return 'Pourvue';
       case 'archived': return 'Archivée';
       default: return status;
     }
@@ -288,7 +333,6 @@ const fetchOffers = async () => {
 
   return (
     <div className="space-y-6">
-      
       {/* En-tête */}
       <div className="p-6 bg-white border border-slate-200 rounded-xl">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
@@ -298,13 +342,13 @@ const fetchOffers = async () => {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Offres d'emploi</h2>
-              <p className="text-slate-600">Offres issues des demandes de recrutement validées</p>
+              <p className="text-slate-600">Gérez vos offres issues des demandes de recrutement validées</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filtres et statistiques */}
+      {/* Statistiques */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="p-5 border bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 rounded-xl">
           <div className="flex items-center justify-between mb-2">
@@ -328,24 +372,24 @@ const fetchOffers = async () => {
         
         <div className="p-5 border bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200 rounded-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-amber-700">Vues totales</span>
-            <Eye className="w-5 h-5 text-amber-500" />
+            <span className="font-medium text-amber-700">Brouillons</span>
+            <Edit2 className="w-5 h-5 text-amber-500" />
           </div>
           <div className="text-3xl font-bold text-amber-900">
-            {offers.reduce((sum, offer) => sum + offer.views_count, 0)}
+            {offers.filter(o => o.status === 'draft').length}
           </div>
-          <p className="text-sm text-amber-700">Consultations</p>
+          <p className="text-sm text-amber-700">À publier</p>
         </div>
         
         <div className="p-5 border bg-gradient-to-r from-violet-50 to-purple-50 border-violet-200 rounded-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-violet-700">Candidatures</span>
-            <Users className="w-5 h-5 text-violet-500" />
+            <span className="font-medium text-violet-700">Clôturées</span>
+            <CheckCircle className="w-5 h-5 text-violet-500" />
           </div>
           <div className="text-3xl font-bold text-violet-900">
-            {offers.reduce((sum, offer) => sum + offer.applications_count, 0)}
+            {offers.filter(o => o.status === 'closed' || o.status === 'filled').length}
           </div>
-          <p className="text-sm text-violet-700">Total reçues</p>
+          <p className="text-sm text-violet-700">Recrutement terminé</p>
         </div>
       </div>
 
@@ -402,10 +446,8 @@ const fetchOffers = async () => {
                 type="text"
                 placeholder="Rechercher une offre..."
                 className="py-2 pl-10 pr-4 border rounded-lg border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={searchTerm}
-                onChange={(e) => {
-                  // La recherche est gérée par le parent via searchTerm
-                }}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
           </div>
@@ -432,11 +474,11 @@ const fetchOffers = async () => {
                         </span>
                       </div>
                       <p className="text-slate-600">
-                        <span className="font-medium">{offer.department}</span> • {offer.site}
+                        <span className="font-medium">{offer.department}</span> • {offer.location}
                       </p>
-                      {offer.recruitment_request_id && (
+                      {offer.request_id && (
                         <p className="mt-1 text-xs text-slate-400">
-                          Issue de la demande #{offer.recruitment_request_id}
+                          Issue de la demande #{offer.request_id}
                         </p>
                       )}
                     </div>
@@ -451,13 +493,15 @@ const fetchOffers = async () => {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => handleOpenEditModal(offer)}
-                        className="p-2 text-blue-400 rounded-lg hover:text-blue-600 hover:bg-blue-50"
-                        title="Modifier"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      {offer.status === 'draft' && (
+                        <button
+                          onClick={() => handleOpenEditModal(offer)}
+                          className="p-2 text-blue-400 rounded-lg hover:text-blue-600 hover:bg-blue-50"
+                          title="Modifier"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -466,7 +510,7 @@ const fetchOffers = async () => {
                       <Tag className="w-4 h-4 text-slate-400" />
                       <div>
                         <p className="text-sm text-slate-500">Référence</p>
-                        <p className="font-medium text-slate-900">{offer.reference}</p>
+                        <p className="font-medium text-slate-900">{offer.reference || 'Non définie'}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -481,11 +525,9 @@ const fetchOffers = async () => {
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4 text-slate-400" />
                       <div>
-                        <p className="text-sm text-slate-500">Publication</p>
+                        <p className="text-sm text-slate-500">Création</p>
                         <p className="font-medium text-slate-900">
-                          {offer.publication_date 
-                            ? new Date(offer.publication_date).toLocaleDateString('fr-FR')
-                            : 'Non publiée'}
+                          {new Date(offer.created_at).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
                     </div>
@@ -494,22 +536,32 @@ const fetchOffers = async () => {
                       <div>
                         <p className="text-sm text-slate-500">Clôture</p>
                         <p className="font-medium text-slate-900">
-                          {new Date(offer.closing_date).toLocaleDateString('fr-FR')}
+                          {new Date(offer.application_deadline).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
                     </div>
                   </div>
+
+                  {/* Salaire */}
+                  {(offer.salary_min || offer.salary_max) && (
+                    <div className="flex items-center space-x-2">
+                      <DollarSign className="w-4 h-4 text-emerald-500" />
+                      <span className="text-sm font-medium text-emerald-700">
+                        {formatSalary(offer.salary_min, offer.salary_max)}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Métriques */}
                   {offer.status === 'published' && (
                     <div className="flex flex-wrap gap-4">
                       <div className="flex items-center space-x-2">
                         <Eye className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm text-slate-600">{offer.views_count} vues</span>
+                        <span className="text-sm text-slate-600">{offer.views_count || 0} vues</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Users className="w-4 h-4 text-emerald-500" />
-                        <span className="text-sm text-slate-600">{offer.applications_count} candidatures</span>
+                        <span className="text-sm text-slate-600">{offer.applications_count || 0} candidatures</span>
                       </div>
                       {offer.remote_work && (
                         <div className="flex items-center space-x-2">
@@ -519,29 +571,14 @@ const fetchOffers = async () => {
                       )}
                     </div>
                   )}
-
-                  {/* Plateformes de publication */}
-                  {offer.published_on && offer.published_on.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      <span className="text-sm text-slate-500">Publiée sur :</span>
-                      {offer.published_on.map((platform, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700"
-                        >
-                          {platform}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* Actions */}
                 <div className="space-y-3 lg:w-64">
                   {offer.status === 'draft' ? (
                     <button
-                      onClick={() => setShowPublishModal(true)}
-                      className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600 shadow-emerald-500/30"
+                      onClick={() => openPublishModal(offer)}
+                      className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600"
                     >
                       <Share2 className="w-5 h-5" />
                       <span>Publier l'offre</span>
@@ -549,30 +586,12 @@ const fetchOffers = async () => {
                   ) : offer.status === 'published' ? (
                     <button
                       onClick={() => handleCloseOffer(offer.id)}
-                      className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600 shadow-blue-500/30"
+                      className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600"
                     >
                       <CheckCircle className="w-5 h-5" />
                       <span>Clôturer l'offre</span>
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => toast.success('Fonctionnalité à implémenter')}
-                      className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl hover:from-amber-600 hover:to-orange-600 shadow-amber-500/30"
-                    >
-                      <Zap className="w-5 h-5" />
-                      <span>Ré-ouvrir</span>
-                    </button>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => toast.success('PDF généré avec succès')}
-                      className="flex items-center justify-center px-3 py-2 space-x-2 font-medium transition-all rounded-lg bg-gradient-to-r from-violet-100 to-purple-100 text-violet-700 hover:from-violet-200 hover:to-purple-200"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span className="text-sm">PDF</span>
-                    </button>
-                  </div>
+                  ) : null}
 
                   <button
                     onClick={() => {
@@ -601,8 +620,8 @@ const fetchOffers = async () => {
         )}
       </div>
 
-      {/* Modal de publication (à conserver pour les publications manuelles) */}
-      {showPublishModal && selectedOffer && (
+      {/* Modal de publication avec sélection des plateformes */}
+      {showPublishModal && selectedOfferForPublish && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-2xl border shadow-2xl bg-gradient-to-br from-white to-slate-50 rounded-2xl border-white/30">
             <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-white/90 to-white/80 backdrop-blur-lg border-slate-200/50">
@@ -610,76 +629,84 @@ const fetchOffers = async () => {
                 <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500">
                   <Share2 className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Publier l'offre</h3>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Publier l'offre</h3>
+                  <p className="text-sm text-slate-600">{selectedOfferForPublish.title}</p>
+                </div>
               </div>
               <button
-                onClick={() => setShowPublishModal(false)}
+                onClick={() => {
+                  setShowPublishModal(false);
+                  setSelectedOfferForPublish(null);
+                  setSelectedPlatforms([]);
+                }}
                 className="p-2 hover:bg-slate-100 rounded-xl"
               >
                 <XCircle className="w-5 h-5 text-slate-600" />
               </button>
             </div>
+            
             <div className="p-6">
               <div className="space-y-6">
                 <div>
-                  <h4 className="mb-3 font-semibold text-slate-900">Sélectionnez les plateformes :</h4>
+                  <h4 className="mb-3 font-semibold text-slate-900">Sélectionnez les plateformes de publication :</h4>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <label className="flex items-center p-4 space-x-3 border cursor-pointer border-slate-200 rounded-xl hover:border-blue-300 hover:bg-blue-50">
-                      <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" />
-                      <div className="flex items-center space-x-2">
-                        <Building className="w-5 h-5 text-blue-500" />
-                        <div>
-                          <p className="font-medium text-slate-900">Interne</p>
-                          <p className="text-sm text-slate-600">Site intranet</p>
-                        </div>
-                      </div>
-                    </label>
-                    <label className="flex items-center p-4 space-x-3 border cursor-pointer border-slate-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50">
-                      <input type="checkbox" className="w-4 h-4 rounded text-emerald-600" />
-                      <div className="flex items-center space-x-2">
-                        <Globe className="w-5 h-5 text-emerald-500" />
-                        <div>
-                          <p className="font-medium text-slate-900">Tanitjobs</p>
-                          <p className="text-sm text-slate-600">Site externe</p>
-                        </div>
-                      </div>
-                    </label>
-                    <label className="flex items-center p-4 space-x-3 border cursor-pointer border-slate-200 rounded-xl hover:border-blue-300 hover:bg-blue-50">
-                      <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" />
-                      <div className="flex items-center space-x-2">
-                        <Linkedin className="w-5 h-5 text-blue-500" />
-                        <div>
-                          <p className="font-medium text-slate-900">LinkedIn</p>
-                          <p className="text-sm text-slate-600">Réseau professionnel</p>
-                        </div>
-                      </div>
-                    </label>
-                    <label className="flex items-center p-4 space-x-3 border cursor-pointer border-slate-200 rounded-xl hover:border-amber-300 hover:bg-amber-50">
-                      <input type="checkbox" className="w-4 h-4 rounded text-amber-600" />
-                      <div className="flex items-center space-x-2">
-                        <Briefcase className="w-5 h-5 text-amber-500" />
-                        <div>
-                          <p className="font-medium text-slate-900">Autres plateformes</p>
-                          <p className="text-sm text-slate-600">Indeed, Monster, etc.</p>
-                        </div>
-                      </div>
-                    </label>
+                    {PUBLISH_PLATFORMS.map((platform) => {
+                      const Icon = platform.icon;
+                      const isSelected = selectedPlatforms.includes(platform.id);
+                      return (
+                        <label
+                          key={platform.id}
+                          className={`flex items-center p-4 space-x-3 border cursor-pointer rounded-xl transition-all ${
+                            isSelected
+                              ? `border-${platform.color}-500 bg-gradient-to-r from-${platform.color}-50 to-${platform.color}-100 ring-2 ring-${platform.color}-500/30`
+                              : 'border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => togglePlatform(platform.id)}
+                            className={`w-4 h-4 rounded focus:ring-${platform.color}-500 text-${platform.color}-600`}
+                          />
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-2 rounded-lg ${
+                              isSelected ? `bg-${platform.color}-100` : 'bg-slate-100'
+                            }`}>
+                              <Icon className={`w-5 h-5 ${
+                                isSelected ? `text-${platform.color}-600` : 'text-slate-500'
+                              }`} />
+                            </div>
+                            <div>
+                              <p className={`font-medium ${
+                                isSelected ? `text-${platform.color}-900` : 'text-slate-900'
+                              }`}>
+                                {platform.name}
+                              </p>
+                              <p className="text-sm text-slate-500">{platform.description}</p>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="flex justify-end pt-4 space-x-3 border-t border-slate-200">
                   <button
-                    onClick={() => setShowPublishModal(false)}
+                    onClick={() => {
+                      setShowPublishModal(false);
+                      setSelectedOfferForPublish(null);
+                      setSelectedPlatforms([]);
+                    }}
                     className="px-6 py-3 font-medium transition-all bg-gradient-to-r from-slate-200 to-slate-300 text-slate-700 rounded-xl hover:from-slate-300 hover:to-slate-400"
                   >
                     Annuler
                   </button>
                   <button
-                    onClick={() => {
-                      handlePublishOffer(selectedOffer.id, ['Internal', 'Tanitjobs', 'LinkedIn']);
-                      setShowPublishModal(false);
-                    }}
-                    className="px-6 py-3 font-medium text-white transition-all bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600"
+                    onClick={handlePublishOffer}
+                    disabled={selectedPlatforms.length === 0}
+                    className="px-6 py-3 font-medium text-white transition-all bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Publier maintenant
                   </button>
@@ -713,15 +740,14 @@ const fetchOffers = async () => {
             </div>
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
               <div className="space-y-6">
-                {/* En-tête avec statut */}
                 <div className="p-5 border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl">
                   <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                     <div>
                       <h4 className="mb-1 text-lg font-bold text-slate-900">{selectedOffer.title}</h4>
-                      <p className="text-slate-600">{selectedOffer.department} • {selectedOffer.site}</p>
-                      {selectedOffer.recruitment_request_id && (
+                      <p className="text-slate-600">{selectedOffer.department} • {selectedOffer.location}</p>
+                      {selectedOffer.request_id && (
                         <p className="mt-1 text-xs text-slate-500">
-                          Issue de la demande de recrutement #{selectedOffer.recruitment_request_id}
+                          Issue de la demande de recrutement #{selectedOffer.request_id}
                         </p>
                       )}
                     </div>
@@ -741,7 +767,6 @@ const fetchOffers = async () => {
                   </div>
                 </div>
 
-                {/* Informations clés */}
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div className="p-4 bg-white border border-slate-200 rounded-xl">
                     <p className="mb-1 text-sm text-slate-500">Date publication</p>
@@ -754,20 +779,21 @@ const fetchOffers = async () => {
                   <div className="p-4 bg-white border border-slate-200 rounded-xl">
                     <p className="mb-1 text-sm text-slate-500">Date clôture</p>
                     <p className="font-medium text-slate-900">
-                      {new Date(selectedOffer.closing_date).toLocaleDateString('fr-FR')}
+                      {new Date(selectedOffer.application_deadline).toLocaleDateString('fr-FR')}
                     </p>
                   </div>
                   <div className="p-4 bg-white border border-slate-200 rounded-xl">
                     <p className="mb-1 text-sm text-slate-500">Salaire</p>
-                    <p className="font-medium text-slate-900">{selectedOffer.salary_range || 'Non spécifié'}</p>
+                    <p className="font-medium text-slate-900">
+                      {formatSalary(selectedOffer.salary_min, selectedOffer.salary_max)}
+                    </p>
                   </div>
                   <div className="p-4 bg-white border border-slate-200 rounded-xl">
                     <p className="mb-1 text-sm text-slate-500">Expérience</p>
-                    <p className="font-medium text-slate-900">{selectedOffer.experience_level}</p>
+                    <p className="font-medium text-slate-900">{selectedOffer.experience}</p>
                   </div>
                 </div>
 
-                {/* Description et profil */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <div className="p-5 bg-white border border-slate-200 rounded-xl">
                     <h4 className="flex items-center mb-3 space-x-2 font-semibold text-slate-900">
@@ -789,7 +815,6 @@ const fetchOffers = async () => {
                   </div>
                 </div>
 
-                {/* Statistiques */}
                 {selectedOffer.status === 'published' && (
                   <div className="p-5 bg-white border border-slate-200 rounded-xl">
                     <h4 className="mb-3 font-semibold text-slate-900">Statistiques</h4>
@@ -804,23 +829,16 @@ const fetchOffers = async () => {
                       </div>
                       <div className="text-center">
                         <div className="text-3xl font-bold text-amber-600">
-                          {selectedOffer.applications_count > 0 
-                            ? Math.round((selectedOffer.applications_count / selectedOffer.views_count) * 100) 
+                          {selectedOffer.applications_count > 0 && selectedOffer.views_count > 0
+                            ? Math.round((selectedOffer.applications_count / selectedOffer.views_count) * 100)
                             : 0}%
                         </div>
                         <p className="text-sm text-slate-600">Taux de conversion</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-violet-600">
-                          {selectedOffer.published_on?.length || 0}
-                        </div>
-                        <p className="text-sm text-slate-600">Plateformes</p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Actions */}
                 <div className="flex justify-center pt-4 space-x-3">
                   <button
                     onClick={() => {
@@ -834,7 +852,7 @@ const fetchOffers = async () => {
                   <button
                     onClick={() => {
                       if (selectedOffer.status === 'draft') {
-                        setShowPublishModal(true);
+                        openPublishModal(selectedOffer);
                       } else if (selectedOffer.status === 'published') {
                         handleCloseOffer(selectedOffer.id);
                       }
@@ -885,13 +903,10 @@ const fetchOffers = async () => {
             
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
               <div className="space-y-6">
-                {/* Informations principales */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <div className="space-y-4">
                     <div>
-                      <label className="block mb-1 text-sm font-medium text-slate-700">
-                        Titre du poste *
-                      </label>
+                      <label className="block mb-1 text-sm font-medium text-slate-700">Titre du poste *</label>
                       <input
                         type="text"
                         value={editFormData.title || ''}
@@ -901,9 +916,7 @@ const fetchOffers = async () => {
                     </div>
                     
                     <div>
-                      <label className="block mb-1 text-sm font-medium text-slate-700">
-                        Département *
-                      </label>
+                      <label className="block mb-1 text-sm font-medium text-slate-700">Département *</label>
                       <select
                         value={editFormData.department || ''}
                         onChange={(e) => handleEditFormChange('department', e.target.value)}
@@ -917,25 +930,21 @@ const fetchOffers = async () => {
                     </div>
                     
                     <div>
-                      <label className="block mb-1 text-sm font-medium text-slate-700">
-                        Site / Localisation *
-                      </label>
+                      <label className="block mb-1 text-sm font-medium text-slate-700">Localisation *</label>
                       <select
-                        value={editFormData.site || ''}
-                        onChange={(e) => handleEditFormChange('site', e.target.value)}
+                        value={editFormData.location || ''}
+                        onChange={(e) => handleEditFormChange('location', e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
-                        <option value="">Sélectionner un site</option>
-                        {SITES.map(site => (
-                          <option key={site} value={site}>{site}</option>
+                        <option value="">Sélectionner une localisation</option>
+                        {LOCATIONS.map(loc => (
+                          <option key={loc} value={loc}>{loc}</option>
                         ))}
                       </select>
                     </div>
                     
                     <div>
-                      <label className="block mb-1 text-sm font-medium text-slate-700">
-                        Type de contrat *
-                      </label>
+                      <label className="block mb-1 text-sm font-medium text-slate-700">Type de contrat *</label>
                       <select
                         value={editFormData.contract_type || ''}
                         onChange={(e) => handleEditFormChange('contract_type', e.target.value)}
@@ -950,43 +959,36 @@ const fetchOffers = async () => {
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block mb-1 text-sm font-medium text-slate-700">
-                        Salaire (optionnel)
-                      </label>
+                      <label className="block mb-1 text-sm font-medium text-slate-700">Salaire minimum (DT/mois)</label>
                       <input
-                        type="text"
-                        value={editFormData.salary_range || ''}
-                        onChange={(e) => handleEditFormChange('salary_range', e.target.value)}
-                        placeholder="ex: 45-55K€"
+                        type="number"
+                        value={editFormData.salary_min || ''}
+                        onChange={(e) => handleEditFormChange('salary_min', e.target.value ? parseFloat(e.target.value) : undefined)}
                         className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                     
                     <div>
-                      <label className="block mb-1 text-sm font-medium text-slate-700">
-                        Niveau d'expérience *
-                      </label>
+                      <label className="block mb-1 text-sm font-medium text-slate-700">Salaire maximum (DT/mois)</label>
+                      <input
+                        type="number"
+                        value={editFormData.salary_max || ''}
+                        onChange={(e) => handleEditFormChange('salary_max', e.target.value ? parseFloat(e.target.value) : undefined)}
+                        className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-1 text-sm font-medium text-slate-700">Expérience requise *</label>
                       <select
-                        value={editFormData.experience_level || ''}
-                        onChange={(e) => handleEditFormChange('experience_level', e.target.value)}
+                        value={editFormData.experience || ''}
+                        onChange={(e) => handleEditFormChange('experience', e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         {EXPERIENCE_LEVELS.map(level => (
                           <option key={level} value={level}>{level}</option>
                         ))}
                       </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block mb-1 text-sm font-medium text-slate-700">
-                        Date de clôture *
-                      </label>
-                      <input
-                        type="date"
-                        value={editFormData.closing_date ? new Date(editFormData.closing_date).toISOString().split('T')[0] : ''}
-                        onChange={(e) => handleEditFormChange('closing_date', new Date(e.target.value).toISOString())}
-                        className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
                     </div>
                     
                     <div className="flex items-center pt-2 space-x-4">
@@ -1003,11 +1005,8 @@ const fetchOffers = async () => {
                   </div>
                 </div>
                 
-                {/* Description */}
                 <div>
-                  <label className="block mb-2 text-sm font-medium text-slate-700">
-                    Description du poste *
-                  </label>
+                  <label className="block mb-2 text-sm font-medium text-slate-700">Description du poste *</label>
                   <textarea
                     value={editFormData.description || ''}
                     onChange={(e) => handleEditFormChange('description', e.target.value)}
@@ -1017,11 +1016,8 @@ const fetchOffers = async () => {
                   />
                 </div>
                 
-                {/* Profil recherché */}
                 <div>
-                  <label className="block mb-2 text-sm font-medium text-slate-700">
-                    Profil recherché *
-                  </label>
+                  <label className="block mb-2 text-sm font-medium text-slate-700">Profil recherché *</label>
                   <textarea
                     value={editFormData.profile_required || ''}
                     onChange={(e) => handleEditFormChange('profile_required', e.target.value)}
@@ -1031,7 +1027,16 @@ const fetchOffers = async () => {
                   />
                 </div>
                 
-                {/* Boutons d'action */}
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-slate-700">Date de clôture *</label>
+                  <input
+                    type="date"
+                    value={editFormData.application_deadline ? new Date(editFormData.application_deadline).toISOString().split('T')[0] : ''}
+                    onChange={(e) => handleEditFormChange('application_deadline', new Date(e.target.value).toISOString())}
+                    className="w-full px-4 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
                 <div className="flex justify-end pt-4 space-x-3 border-t border-slate-200">
                   <button
                     onClick={() => {

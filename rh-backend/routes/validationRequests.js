@@ -114,6 +114,16 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
     const { id } = req.params;
     const { validator_name, validator_role, comment, next_level } = req.body;
     
+    // ========== LOG 1: DONNÉES REÇUES ==========
+    console.log('========================================');
+    console.log('🔍 VALIDATION - Début du traitement');
+    console.log(`📋 ID demande: ${id}`);
+    console.log(`👤 Validateur: ${validator_name} (${validator_role})`);
+    console.log(`📝 Commentaire: ${comment || 'Aucun'}`);
+    console.log(`🎯 Niveau suivant (next_level): "${next_level}"`);
+    console.log(`🔎 next_level === 'COMPLETED'? ${next_level === 'COMPLETED'}`);
+    console.log('========================================');
+    
     await client.query('BEGIN');
     
     // 1. Récupérer la demande actuelle
@@ -124,10 +134,12 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
     
     if (requestQuery.rows.length === 0) {
       await client.query('ROLLBACK');
+      console.log('❌ Demande non trouvée');
       return res.status(404).json({ error: "Demande non trouvée" });
     }
     
     const request = requestQuery.rows[0];
+    console.log(`📄 Demande trouvée: ${request.title} (${request.current_validation_level})`);
     
     // 2. Ajouter l'entrée dans validation_tracking
     await client.query(
@@ -138,12 +150,22 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
        )`,
       [id, validator_name, validator_role, comment, request.current_validation_level]
     );
+    console.log(`✅ Validation enregistrée dans validation_tracking`);
     
     // 3. Mettre à jour la demande
     let updateQuery;
     let updateParams;
     
+    // ========== LOG 2: VÉRIFICATION DE LA VALIDATION FINALE ==========
+    console.log(`🔍 Vérification de la condition: next_level === 'COMPLETED'?`);
+    console.log(`   next_level = "${next_level}"`);
+    console.log(`   Type de next_level: ${typeof next_level}`);
+    console.log(`   Comparaison: ${next_level === 'COMPLETED'}`);
+    
     if (next_level === 'COMPLETED') {
+      // ========== LOG 3: VALIDATION FINALE ==========
+      console.log('🎉🎉🎉 VALIDATION FINALE - Création de l\'offre en brouillon 🎉🎉🎉');
+      
       // Validation finale
       updateQuery = `
         UPDATE recruitment_requests 
@@ -158,6 +180,17 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
       // Calculer la date de deadline (30 jours par défaut)
       const deadline = new Date();
       deadline.setDate(deadline.getDate() + 30);
+      console.log(`📅 Date de clôture: ${deadline.toISOString().split('T')[0]}`);
+      
+      // Vérifier si une offre existe déjà pour cette demande
+      const existingOfferCheck = await client.query(
+        'SELECT id FROM job_offers WHERE request_id = $1',
+        [id]
+      );
+      
+      if (existingOfferCheck.rows.length > 0) {
+        console.log(`⚠️ Une offre existe déjà pour la demande ${id}, mise à jour en cours...`);
+      }
       
       // 🔥 CRÉER L'OFFRE D'EMPLOI EN BROUILLON (draft)
       const offerQuery = `
@@ -172,6 +205,8 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
           level,
           experience,
           budget,
+          salary_min,
+          salary_max,
           remote_work,
           travel_required,
           start_date,
@@ -180,7 +215,7 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
           created_by,
           created_by_name,
           status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'draft')
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'draft')
         ON CONFLICT (request_id) DO UPDATE SET
           title = EXCLUDED.title,
           department = EXCLUDED.department,
@@ -191,6 +226,8 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
           level = EXCLUDED.level,
           experience = EXCLUDED.experience,
           budget = EXCLUDED.budget,
+          salary_min = EXCLUDED.salary_min,
+          salary_max = EXCLUDED.salary_max,
           remote_work = EXCLUDED.remote_work,
           travel_required = EXCLUDED.travel_required,
           start_date = EXCLUDED.start_date,
@@ -198,10 +235,19 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
           application_deadline = EXCLUDED.application_deadline,
           updated_at = NOW(),
           status = 'draft'
-        RETURNING id
+        RETURNING id, status
       `;
       
-      await client.query(offerQuery, [
+      console.log('📝 Exécution de la requête d\'insertion/mise à jour de l\'offre...');
+      console.log('   Valeurs:');
+      console.log(`   - request_id: ${request.id}`);
+      console.log(`   - title: ${request.title}`);
+      console.log(`   - department: ${request.department}`);
+      console.log(`   - location: ${request.location}`);
+      console.log(`   - contract_type: ${request.contract_type}`);
+      console.log(`   - status: draft`);
+      
+      const offerResult = await client.query(offerQuery, [
         request.id,
         request.title,
         request.department,
@@ -212,6 +258,8 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
         request.level,
         request.experience,
         request.budget,
+        request.salary_min,
+        request.salary_max,
         request.remote_work,
         request.travel_required,
         request.start_date,
@@ -221,9 +269,15 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
         request.created_by_name
       ]);
       
-      console.log(`✅ Offre d'emploi créée en BROUILLON pour la demande ${id}`);
+      // ========== LOG 4: RÉSULTAT DE LA CRÉATION DE L'OFFRE ==========
+      console.log(`✅ Offre d'emploi créée/mise à jour en BROUILLON pour la demande ${id}`);
+      console.log(`   ID offre: ${offerResult.rows[0]?.id}`);
+      console.log(`   Statut: ${offerResult.rows[0]?.status}`);
       
     } else {
+      // ========== LOG 5: VALIDATION PARTIELLE ==========
+      console.log(`📌 Validation partielle - Passage au niveau suivant: ${next_level}`);
+      
       // Passage au niveau suivant
       updateQuery = `
         UPDATE recruitment_requests 
@@ -236,10 +290,12 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
     }
     
     const updatedRequest = await client.query(updateQuery, updateParams);
+    console.log(`✅ Demande mise à jour - Nouveau niveau: ${updatedRequest.rows[0]?.current_validation_level}`);
     
     await client.query('COMMIT');
     
     console.log(`✅ Demande ${id} validée par ${validator_role}`);
+    console.log('========================================');
     
     return res.json({
       message: next_level === 'COMPLETED' 
@@ -251,7 +307,8 @@ router.post("/validation-requests/:id/validate", async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("❌ Erreur lors de la validation :", error);
-    return res.status(500).json({ error: "Erreur serveur" });
+    console.error("📚 Stack trace:", error.stack);
+    return res.status(500).json({ error: "Erreur serveur", details: error.message });
   } finally {
     client.release();
   }
@@ -268,6 +325,13 @@ router.post("/validation-requests/:id/reject", async (req, res) => {
     const { id } = req.params;
     const { validator_name, validator_role, comment } = req.body;
     
+    console.log('========================================');
+    console.log('🔍 REJET - Début du traitement');
+    console.log(`📋 ID demande: ${id}`);
+    console.log(`👤 Validateur: ${validator_name} (${validator_role})`);
+    console.log(`📝 Commentaire: ${comment || 'Aucun'}`);
+    console.log('========================================');
+    
     await client.query('BEGIN');
     
     // 1. Récupérer le niveau de validation actuel
@@ -278,10 +342,12 @@ router.post("/validation-requests/:id/reject", async (req, res) => {
     
     if (currentRequest.rows.length === 0) {
       await client.query('ROLLBACK');
+      console.log('❌ Demande non trouvée');
       return res.status(404).json({ error: "Demande non trouvée" });
     }
     
     const currentLevel = currentRequest.rows[0].current_validation_level;
+    console.log(`📄 Demande trouvée - Niveau actuel: ${currentLevel}`);
     
     // 2. Ajouter l'entrée dans validation_tracking
     await client.query(
@@ -292,6 +358,7 @@ router.post("/validation-requests/:id/reject", async (req, res) => {
        )`,
       [id, validator_name, validator_role, comment, currentLevel]
     );
+    console.log(`✅ Rejet enregistré dans validation_tracking`);
     
     // 3. Mettre à jour la demande
     const updatedRequest = await client.query(
@@ -306,6 +373,7 @@ router.post("/validation-requests/:id/reject", async (req, res) => {
     await client.query('COMMIT');
     
     console.log(`❌ Demande ${id} refusée par ${validator_role}`);
+    console.log('========================================');
     
     return res.json({
       message: "Refus enregistré avec succès",
@@ -315,7 +383,8 @@ router.post("/validation-requests/:id/reject", async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("❌ Erreur lors du refus :", error);
-    return res.status(500).json({ error: "Erreur serveur" });
+    console.error("📚 Stack trace:", error.stack);
+    return res.status(500).json({ error: "Erreur serveur", details: error.message });
   } finally {
     client.release();
   }

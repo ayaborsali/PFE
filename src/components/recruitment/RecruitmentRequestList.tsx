@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Eye, CheckCircle, Zap, Building, DollarSign, Calendar,
   Filter, Download, ChevronLeft, ChevronRight, Search, XCircle, AlertCircle,
-  FileText, ChevronDown
+  FileText, ChevronDown, Trash2, Archive
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import RequestValidationModal from './RequestValidationModal';
@@ -16,8 +16,8 @@ interface Request {
   contract_type: string;
   reason: string;
   budget: number;
-  salary_min: number | null;  // Ajouté
-  salary_max: number | null;  // Ajouté
+  salary_min: number | null;
+  salary_max: number | null;
   required_skills: string[];
   description: string;
   urgent: boolean;
@@ -51,6 +51,8 @@ interface Props {
   onUpdate: () => void;
   searchTerm: string;
   onNewRequest?: () => void;
+  showArchived?: boolean; // Pour afficher les archives
+  onViewArchived?: () => void; // Pour basculer vers les archives
 }
 
 // Fonction utilitaire pour formater le salaire
@@ -70,7 +72,7 @@ const formatSalary = (salaryMin: number | null, salaryMax: number | null): strin
   return 'Non spécifié';
 };
 
-export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequest }: Props) {
+export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequest, showArchived = false, onViewArchived }: Props) {
   const { user } = useAuth();
   const [requests, setRequests] = useState<Request[]>([]);
   const [filteredRequests, setFilteredRequests] = useState<Request[]>([]);
@@ -79,8 +81,9 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
   const [totalPages, setTotalPages] = useState(1);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<Request | null>(null);
+  const [deletionReason, setDeletionReason] = useState<string>('');
   
   // États pour les filtres avancés
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -106,7 +109,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
 
   useEffect(() => {
     fetchRequests();
-  }, [page, selectedStatus, searchTerm]);
+  }, [page, selectedStatus, searchTerm, showArchived]);
 
   useEffect(() => {
     if (requests.length > 0) {
@@ -128,10 +131,15 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         page: page.toString(),
         limit: itemsPerPage.toString(),
         status: selectedStatus,
-        search: searchTerm || ''
+        search: searchTerm || '',
+        archived: showArchived ? 'true' : 'false'
       });
 
-      const res = await fetch(`http://localhost:5000/api/recruitmentRequests?${params}`, {
+      const endpoint = showArchived 
+        ? 'http://localhost:5000/api/recruitmentRequests/archived'
+        : 'http://localhost:5000/api/recruitmentRequests';
+
+      const res = await fetch(`${endpoint}?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -202,7 +210,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
       filtered = filtered.filter(r => new Date(r.created_at) <= new Date(filters.dateTo));
     }
 
-    // Filtre par budget (maintenant basé sur salary_min et salary_max)
+    // Filtre par budget
     if (filters.minBudget !== null) {
       filtered = filtered.filter(r => {
         const avgSalary = r.salary_min && r.salary_max ? (r.salary_min + r.salary_max) / 2 : r.budget || 0;
@@ -239,7 +247,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
     try {
       const dataToExport = filteredRequests.length > 0 ? filteredRequests : requests;
       
-      // Définir les colonnes à exporter
       const headers = [
         'Titre',
         'Département',
@@ -256,7 +263,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         'Créé par'
       ];
 
-      // Convertir les données en lignes CSV
       const rows = dataToExport.map(request => [
         request.title,
         request.department,
@@ -273,13 +279,11 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         request.created_by_name
       ]);
 
-      // Construire le contenu CSV
       const csvContent = [
         headers.join(','),
         ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
       ].join('\n');
 
-      // Créer et télécharger le fichier
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
@@ -301,27 +305,37 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
     exportToCSV();
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, reason: string = '') => {
     try {
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       
-      const res = await fetch(`http://localhost:5000/api/recruitmentRequests/${id}`, {
-        method: 'DELETE',
+      const res = await fetch(`http://localhost:5000/api/recruitmentRequests/${id}/archive`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: JSON.stringify({ 
+          deletion_reason: reason || 'Suppression manuelle',
+          deleted_by: user?.id,
+          deleted_by_name: user?.full_name || user?.email,
+          deleted_by_role: user?.role
+        })
       });
 
       if (res.ok) {
-        toast.success('Demande supprimée avec succès');
+        toast.success('Demande archivée avec succès');
         setShowDeleteConfirm(null);
+        setDeletionReason('');
         fetchRequests();
         onUpdate();
       } else {
-        throw new Error('Erreur suppression');
+        const error = await res.json();
+        throw new Error(error.message || 'Erreur suppression');
       }
     } catch (error) {
-      toast.error('Erreur lors de la suppression');
+      console.error('Erreur suppression:', error);
+      toast.error('Erreur lors de l\'archivage');
     }
   };
 
@@ -343,6 +357,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
       case 'Validées': return 'bg-emerald-100 text-emerald-700';
       case 'Refusées': return 'bg-red-100 text-red-700';
       case 'Clôturées': return 'bg-slate-100 text-slate-700';
+      case 'Archivées': return 'bg-gray-100 text-gray-700';
       default: return 'bg-slate-100 text-slate-700';
     }
   };
@@ -418,7 +433,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         const status = request.status;
         const level = request.current_validation_level;
         
-        if (status === 'Validées' || status === 'Refusées' || status === 'Clôturées') {
+        if (status === 'Validées' || status === 'Refusées' || status === 'Clôturées' || status === 'Archivées') {
           return (
             <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(status)}`}>
               {status}
@@ -458,6 +473,19 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         const canValidate = 
           (request.status === 'En attente' || request.status === 'En cours') && 
           request.current_validation_level === userRole;
+        
+        // Ne pas afficher les actions pour les demandes archivées
+        if (request.status === 'Archivées' || showArchived) {
+          return (
+            <button
+              onClick={() => setShowDetailsModal(request)}
+              className="flex items-center px-4 py-2 space-x-2 text-sm font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+            >
+              <Eye className="w-4 h-4" />
+              <span>Détails</span>
+            </button>
+          );
+        }
 
         return (
           <div className="flex items-center space-x-2">
@@ -477,6 +505,13 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
               <Eye className="w-4 h-4" />
               <span>Détails</span>
             </button>
+            <button
+              onClick={() => setShowDeleteConfirm({ id: request.id, title: request.title })}
+              className="flex items-center px-4 py-2 space-x-2 text-sm font-medium text-red-600 rounded-lg bg-red-50 hover:bg-red-100"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Archiver</span>
+            </button>
           </div>
         );
       },
@@ -493,6 +528,22 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
 
   return (
     <div className="space-y-6">
+      {/* En-tête avec bouton archives */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-slate-900">
+          {showArchived ? 'Demandes archivées' : 'Demandes de recrutement'}
+        </h2>
+        {onViewArchived && (
+          <button
+            onClick={onViewArchived}
+            className="flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+          >
+            <Archive className="w-4 h-4" />
+            <span>{showArchived ? 'Voir les demandes actives' : 'Voir les archives'}</span>
+          </button>
+        )}
+      </div>
+
       {/* Filtres rapides et boutons d'action */}
       <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div className="flex flex-wrap gap-2">
@@ -512,17 +563,19 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         </div>
 
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg ${
-              showAdvancedFilters 
-                ? 'bg-emerald-500 text-white' 
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Filter className="w-4 h-4" />
-            <span>Filtres avancés</span>
-          </button>
+          {!showArchived && (
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg ${
+                showAdvancedFilters 
+                  ? 'bg-emerald-500 text-white' 
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              <span>Filtres avancés</span>
+            </button>
+          )}
 
           {/* Menu d'export */}
           <div className="relative group">
@@ -532,7 +585,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
               <ChevronDown className="w-4 h-4" />
             </button>
             
-            {/* Dropdown d'export */}
             <div className="absolute right-0 z-10 hidden w-48 mt-2 bg-white border rounded-lg shadow-xl group-hover:block">
               <button
                 onClick={exportToCSV}
@@ -553,19 +605,10 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         </div>
       </div>
 
-      {/* Filtres avancés */}
-      {showAdvancedFilters && (
+      {/* Filtres avancés - seulement pour les demandes actives */}
+      {showAdvancedFilters && !showArchived && (
         <div className="p-6 bg-white border rounded-xl border-slate-200">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Filtres avancés</h3>
-            <button
-              onClick={resetFilters}
-              className="px-3 py-1 text-sm rounded-lg text-emerald-600 hover:bg-emerald-50"
-            >
-              Réinitialiser
-            </button>
-          </div>
-
+          {/* ... contenu des filtres avancés identique ... */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {/* Département */}
             <div>
@@ -718,7 +761,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
             </div>
           </div>
 
-          {/* Résumé des filtres */}
           <div className="flex items-center justify-between mt-4">
             <p className="text-sm text-slate-600">
               {filteredRequests.length} demande(s) trouvée(s)
@@ -772,7 +814,9 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
             <p className="text-slate-600">
               {searchTerm || Object.values(filters).some(v => v) 
                 ? 'Aucun résultat pour vos critères de recherche'
-                : 'Aucune demande de recrutement pour le moment'}
+                : showArchived 
+                  ? 'Aucune demande archivée pour le moment'
+                  : 'Aucune demande de recrutement pour le moment'}
             </p>
           </div>
         )}
@@ -907,31 +951,50 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         </div>
       )}
 
-      {/* Modal de confirmation de suppression */}
+      {/* Modal de confirmation d'archivage */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-md p-6 bg-white shadow-2xl rounded-2xl">
             <div className="flex items-center mb-6 space-x-4">
               <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl">
-                <AlertCircle className="w-6 h-6 text-white" />
+                <Archive className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Confirmer la suppression</h3>
-                <p className="mt-1 text-slate-600">Êtes-vous sûr de vouloir supprimer cette demande ?</p>
+                <h3 className="text-xl font-bold text-slate-900">Archiver la demande</h3>
+                <p className="mt-1 text-slate-600">
+                  Êtes-vous sûr de vouloir archiver la demande "{showDeleteConfirm.title}" ?
+                </p>
               </div>
             </div>
+            
+            <div className="mb-6">
+              <label className="block mb-2 text-sm font-medium text-slate-700">
+                Raison de l'archivage (optionnel)
+              </label>
+              <textarea
+                value={deletionReason}
+                onChange={(e) => setDeletionReason(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border rounded-lg border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                placeholder="Ex: Doublon, Poste non prioritaire, Budget non disponible, etc."
+              />
+            </div>
+            
             <div className="flex items-center justify-end space-x-3">
               <button
-                onClick={() => setShowDeleteConfirm(null)}
+                onClick={() => {
+                  setShowDeleteConfirm(null);
+                  setDeletionReason('');
+                }}
                 className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
               >
                 Annuler
               </button>
               <button
-                onClick={() => handleDelete(showDeleteConfirm)}
+                onClick={() => handleDelete(showDeleteConfirm.id, deletionReason)}
                 className="px-6 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 text-white font-medium rounded-xl hover:from-red-600 hover:to-orange-600 transition-all"
               >
-                Supprimer
+                Archiver
               </button>
             </div>
           </div>
