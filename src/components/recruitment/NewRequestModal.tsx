@@ -1,4 +1,4 @@
-//manager soumettre la demande d'emploi et les détails de la demande
+// manager soumettre la demande d'emploi et les détails de la demande
 import { useState, useEffect } from 'react';
 import { 
   X, Briefcase, Building, Users, DollarSign,  
@@ -24,11 +24,252 @@ interface RecruitmentCauseDetail {
   urgencyLevel: 'low' | 'medium' | 'high' | 'critical';
   relatedPosition?: string;
   documents?: File[];
+  [key: string]: any; // Pour les réponses dynamiques aux questions
+}
+
+// Composant de sélection de salaire professionnel
+function SalaryRangeInput({ 
+  minValue, 
+  maxValue, 
+  onMinChange, 
+  onMaxChange,
+  error,
+  currency = "DT",
+  required = false
+}: {
+  minValue: string;
+  maxValue: string;
+  onMinChange: (value: string) => void;
+  onMaxChange: (value: string) => void;
+  error?: string;
+  currency?: string;
+  required?: boolean;
+}) {
+  const [minTouched, setMinTouched] = useState(false);
+  const [maxTouched, setMaxTouched] = useState(false);
+  
+  const min = parseFloat(minValue);
+  const max = parseFloat(maxValue);
+  
+  const getValidationMessage = () => {
+    if (!minValue && !maxValue && !required) return null;
+    if (minValue && maxValue) {
+      if (min >= max) {
+        return "Le salaire minimum doit être inférieur au salaire maximum";
+      }
+      if (min === max) {
+        return "Les salaires minimum et maximum doivent être différents";
+      }
+    }
+    if (minValue && !maxValue && required) return "Le salaire maximum est requis";
+    if (!minValue && maxValue && required) return "Le salaire minimum est requis";
+    return null;
+  };
+  
+  const validationMessage = error || getValidationMessage();
+  const isValid = !validationMessage;
+  
+  const formatValue = (value: string) => {
+    if (!value) return '';
+    const num = parseFloat(value);
+    if (isNaN(num)) return '';
+    return new Intl.NumberFormat('fr-FR').format(num);
+  };
+  
+  const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      onMinChange(value);
+    }
+  };
+  
+  const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      onMaxChange(value);
+    }
+  };
+  
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block mb-2 text-sm font-medium text-slate-700">
+            Salaire minimum
+            {required && <span className="ml-1 text-red-500">*</span>}
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <span className="text-slate-500 sm:text-sm">{currency}</span>
+            </div>
+            <input
+              type="text"
+              value={minValue}
+              onChange={handleMinChange}
+              onBlur={() => setMinTouched(true)}
+              className={`block w-full pl-8 pr-12 py-3 border rounded-lg bg-slate-50/50 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all ${
+                !isValid && minTouched ? 'border-red-300' : 'border-slate-300/70'
+              }`}
+              placeholder="0"
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+              <span className="text-slate-400 sm:text-sm">TND</span>
+            </div>
+          </div>
+          {minValue && (
+            <p className="mt-1 text-xs text-slate-500">
+              ~ {formatValue(minValue)} {currency}
+            </p>
+          )}
+        </div>
+        
+        <div>
+          <label className="block mb-2 text-sm font-medium text-slate-700">
+            Salaire maximum
+            {required && <span className="ml-1 text-red-500">*</span>}
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <span className="text-slate-500 sm:text-sm">{currency}</span>
+            </div>
+            <input
+              type="text"
+              value={maxValue}
+              onChange={handleMaxChange}
+              onBlur={() => setMaxTouched(true)}
+              className={`block w-full pl-8 pr-12 py-3 border rounded-lg bg-slate-50/50 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all ${
+                !isValid && maxTouched ? 'border-red-300' : 'border-slate-300/70'
+              }`}
+              placeholder="0"
+            />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+              <span className="text-slate-400 sm:text-sm">TND</span>
+            </div>
+          </div>
+          {maxValue && (
+            <p className="mt-1 text-xs text-slate-500">
+              ~ {formatValue(maxValue)} {currency}
+            </p>
+          )}
+        </div>
+      </div>
+      
+      {!isValid && (minTouched || maxTouched) && (
+        <div className="flex items-start p-3 space-x-2 border border-red-200 rounded-lg bg-red-50">
+          <AlertCircle className="w-4 h-4 mt-0.5 text-red-500 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-800">
+              Erreur de validation
+            </p>
+            <p className="text-sm text-red-700">
+              {validationMessage}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Composant de suggestions de salaires
+function SalarySuggestions({ 
+  jobTitle, 
+  experience,
+  onSelect 
+}: {
+  jobTitle: string;
+  experience: string;
+  onSelect: (min: string, max: string) => void;
+}) {
+  const [suggestions, setSuggestions] = useState<{ min: number; max: number; level: string }[]>([]);
+  
+  useEffect(() => {
+    const getSalarySuggestion = () => {
+      const baseSalary: Record<string, { junior: number; confirmé: number; senior: number; expert: number }> = {
+        'Développeur Full Stack': { junior: 2500, confirmé: 3500, senior: 5000, expert: 7000 },
+        'Développeur Frontend': { junior: 2200, confirmé: 3200, senior: 4500, expert: 6000 },
+        'Développeur Backend': { junior: 2400, confirmé: 3400, senior: 4800, expert: 6500 },
+        'Data Scientist': { junior: 2800, confirmé: 4000, senior: 5500, expert: 8000 },
+        'Chef de Projet IT': { junior: 3000, confirmé: 4200, senior: 5800, expert: 7500 },
+        'Product Owner': { junior: 2800, confirmé: 4000, senior: 5500, expert: 7200 },
+        'Responsable RH': { junior: 2700, confirmé: 3800, senior: 5200, expert: 6800 },
+        'Comptable': { junior: 1800, confirmé: 2500, senior: 3500, expert: 4500 },
+        'Commercial': { junior: 1500, confirmé: 2200, senior: 3000, expert: 4000 },
+      };
+      
+      const defaultSuggestions = [
+        { min: 2000, max: 3000, level: 'Junior' },
+        { min: 3000, max: 4500, level: 'Confirmé' },
+        { min: 4500, max: 6000, level: 'Senior' },
+        { min: 6000, max: 8000, level: 'Expert' },
+      ];
+      
+      const jobKey = Object.keys(baseSalary).find(key => 
+        jobTitle.toLowerCase().includes(key.toLowerCase())
+      );
+      
+      if (jobKey && baseSalary[jobKey]) {
+        const salaries = baseSalary[jobKey];
+        const suggestions = [];
+        
+        if (salaries.junior) suggestions.push({ min: salaries.junior * 0.9, max: salaries.junior * 1.1, level: 'Junior' });
+        if (salaries.confirmé) suggestions.push({ min: salaries.confirmé * 0.9, max: salaries.confirmé * 1.1, level: 'Confirmé' });
+        if (salaries.senior) suggestions.push({ min: salaries.senior * 0.9, max: salaries.senior * 1.1, level: 'Senior' });
+        if (salaries.expert) suggestions.push({ min: salaries.expert * 0.9, max: salaries.expert * 1.1, level: 'Expert' });
+        
+        return suggestions;
+      }
+      
+      return defaultSuggestions;
+    };
+    
+    if (jobTitle) {
+      setSuggestions(getSalarySuggestion());
+    }
+  }, [jobTitle]);
+  
+  if (!jobTitle || suggestions.length === 0) return null;
+  
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('fr-FR').format(value);
+  };
+  
+  return (
+    <div className="p-4 mt-4 border border-blue-200 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="flex items-center mb-3 space-x-2">
+        <Sparkles className="w-4 h-4 text-blue-600" />
+        <span className="text-sm font-medium text-blue-900">
+          Suggestions basées sur le marché
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion.level}
+            type="button"
+            onClick={() => onSelect(suggestion.min.toString(), suggestion.max.toString())}
+            className={`p-3 text-left transition-all rounded-lg border ${
+              experience === suggestion.level
+                ? 'bg-blue-100 border-blue-400 ring-2 ring-blue-400/30'
+                : 'bg-white border-blue-200 hover:bg-blue-50'
+            }`}
+          >
+            <p className="text-xs font-medium text-blue-700">{suggestion.level}</p>
+            <p className="text-sm font-semibold text-blue-900">
+              {formatCurrency(suggestion.min)} - {formatCurrency(suggestion.max)} DT
+            </p>
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-blue-600">
+        💡 Basé sur les données du marché pour ce type de poste
+      </p>
+    </div>
+  );
 }
 
 // Listes statiques des postes
 const jobTitlesList = [
-  // IT & Développement
   'Développeur Full Stack',
   'Développeur Frontend',
   'Développeur Backend',
@@ -44,23 +285,17 @@ const jobTitlesList = [
   'Scrum Master',
   'QA Tester',
   'Cyber Security Analyst',
-  
-  // RH & Management
   'Responsable RH',
   'Chargé de Recrutement',
   'Gestionnaire de Paie',
   'HR Business Partner',
   'Formateur',
-  
-  // Finance & Comptabilité
   'Comptable',
   'Contrôleur de Gestion',
   'Directeur Financier',
   'Chef Comptable',
   'Analyste Financier',
   'Auditeur Interne',
-  
-  // Marketing & Communication
   'Responsable Marketing',
   'Community Manager',
   'Graphiste',
@@ -68,36 +303,26 @@ const jobTitlesList = [
   'SEO Specialist',
   'Marketing Digital',
   'Chef de Produit',
-  
-  // Commercial & Ventes
   'Commercial',
   'Responsable Commercial',
   'Directeur Commercial',
   'Business Developer',
   'Account Manager',
   "Chargé d'Affaires",
-  
-  // Direction & Administration
   'Assistant de Direction',
   'Office Manager',
   'Directeur Général',
   'Directeur Administratif',
-  
-  // Production & Logistique
   'Ingénieur Production',
   "Chef d'équipe",
   'Responsable Logistique',
   'Magasinier',
   'Supply Chain Manager',
   'Planificateur',
-  
-  // Service Client
   'Conseiller Client',
   'Responsable Service Client',
   'Support Technique',
   'Téléconseiller',
-  
-  // Stagiaires et Alternants
   'Stagiaire Développement',
   'Stagiaire Marketing',
   'Stagiaire RH',
@@ -110,8 +335,6 @@ const jobTitlesList = [
   'Alternant RH',
   'Alternant Commercial',
   'Alternant Comptabilité',
-  
-  // CDD Courts / Temporaires
   'CDD Court - Développement',
   'CDD Court - Support',
   'CDD Court - Commercial',
@@ -131,8 +354,6 @@ const jobTitlesList = [
   'Remplacement Court Terme',
   'Congé Maternité Remplacement',
   'Congé Maladie Remplacement',
-  
-  // Postes sans impact budgétaire significatif
   'Technicien Niveau 1',
   "Agent d'entretien",
   'Manutentionnaire',
@@ -145,7 +366,6 @@ const jobTitlesList = [
   'Coursier'
 ].sort();
 
-// Liste des départements
 const departmentsList = [
   'Direction IT',
   'Ressources Humaines',
@@ -163,48 +383,14 @@ const departmentsList = [
   'Communication'
 ].sort();
 
-// Liste des localisations
 const locationsList = [
-  // Tunisie
-  'Tunis',
-  'Sousse',
-  'Sfax',
-  'Nabeul',
-  'Bizerte',
-  'Monastir',
-  'Gabès',
-  'Gafsa',
-  'Kairouan',
-  'Médenine',
-  'Mahdia',
-  'Ben Arous',
-  'Ariana',
-  'Manouba',
-  'Jendouba',
-  'Le Kef',
-  'Siliana',
-  'Kasserine',
-  'Tozeur',
-  'Kébili',
-  'Tataouine',
-  'Béja',
-  'Zaghouan',
-  
-  // International
-  'Paris',
-  'Lyon',
-  'Marseille',
-  'Montréal',
-  'Casablanca',
-  'Alger',
-  'Dubai',
-  'Bruxelles',
-  'Genève'
+  'Charguia 1',
+  'Jbel Wost',
+  'Ain Zaghouan',
 ].sort();
 
 const contractTypes = ['CDI', 'CDD', 'Stage', 'Alternance', 'Freelance', 'Intérim', 'CDD Court (<3 mois)', 'Saisonnier'];
 
-// Structure améliorée des causes de recrutement
 const recruitmentReasons = {
   'Création de poste': {
     icon: FolderPlus,
@@ -213,9 +399,7 @@ const recruitmentReasons = {
     subReasons: [
       'Nouveau projet/département',
       'Expansion de léquipe',
-      'Nouvelle activité',
       'Diversification',
-      'Innovation/R&D',
       'Digitalisation'
     ],
     questions: [
@@ -236,27 +420,8 @@ const recruitmentReasons = {
       'Décès'
     ],
     questions: [
-      'Qui est remplacé ?',
       'Quelle est la raison exacte du départ ?',
       'Y a-t-il une période de passation prévue ?'
-    ]
-  },
-  'Renforcement équipe': {
-    icon: Users,
-    color: 'blue',
-    description: 'Augmentation de la charge de travail nécessitant des ressources supplémentaires',
-    subReasons: [
-      'Croissance activité',
-      'Nouveaux clients',
-      'Surcharge temporaire',
-      'Projet spécifique',
-      'Saisonnalité',
-      'Pic d\'activité'
-    ],
-    questions: [
-      'Quelle est l\'augmentation de charge constatée ?',
-      'Quels sont les indicateurs de cette croissance ?',
-      'Est-ce une tendance durable ?'
     ]
   },
   'Nouveau projet': {
@@ -277,63 +442,9 @@ const recruitmentReasons = {
       'Quel est le budget projet associé ?'
     ]
   },
-  'Départ': {
-    icon: UserMinus,
-    color: 'red',
-    description: 'Départ non prévu nécessitant un remplacement rapide',
-    subReasons: [
-      'Démission imprévue',
-      'Départ urgent',
-      'Absence longue durée',
-      'Licenciement',
-      'Fin de période d\'essai'
-    ],
-    questions: [
-      'Quelle est l\'urgence du remplacement ?',
-      'Y a-t-il des dossiers critiques en attente ?',
-      'Quel est le délai idéal pour le remplacement ?'
-    ]
-  },
-  'Augmentation activité': {
-    icon: Growth,
-    color: 'green',
-    description: 'Croissance soutenue de l\'activité nécessitant des renforts',
-    subReasons: [
-      'Croissance organique',
-      'Nouveaux marchés',
-      'Gain de parts de marché',
-      'Développement commercial',
-      'Nouveaux produits/services'
-    ],
-    questions: [
-      'Quel est le taux de croissance ?',
-      'Quels sont les objectifs à atteindre ?',
-      'Y a-t-il des KPI spécifiques à respecter ?'
-    ]
-  },
-  'Spécialisation': {
-    icon: Award,
-    color: 'purple',
-    description: 'Besoin d\'une expertise spécifique non disponible en interne',
-    subReasons: [
-      'Nouvelle technologie',
-      'Expertise rare',
-      'Compétence stratégique',
-      'Certification requise',
-      'Veille technologique'
-    ],
-    questions: [
-      'Quelle est l\'expertise recherchée ?',
-      'Pourquoi cette compétence n\'est-elle pas disponible en interne ?',
-      'Y a-t-il des formations prévues pour l\'équipe ?'
-    ]
-  }
 };
 
-// Circuits de validation par poste
 const validationFlowsByJob: Record<string, string[]> = {
-  // ===== POSTES AVEC VALIDATION UNIQUEMENT PAR MANAGER =====
-  // Stagiaires
   'Stagiaire Développement': ['Manager'],
   'Stagiaire Marketing': ['Manager'],
   'Stagiaire RH': ['Manager'],
@@ -341,46 +452,30 @@ const validationFlowsByJob: Record<string, string[]> = {
   'Stagiaire Comptabilité': ['Manager'],
   'Stagiaire Communication': ['Manager'],
   'Stagiaire Design': ['Manager'],
-  
-  // Alternants / Apprentis
   'Alternant Développement': ['Manager'],
   'Alternant Marketing': ['Manager'],
   'Alternant RH': ['Manager'],
   'Alternant Commercial': ['Manager'],
   'Alternant Comptabilité': ['Manager'],
-  
-  // CDD courts / Missions temporaires
   'CDD Court - Développement': ['Manager'],
   'CDD Court - Support': ['Manager'],
   'CDD Court - Commercial': ['Manager'],
   'CDD Court - Administratif': ['Manager'],
-  
-  // Intérimaires / Temporaires
   'Intérimaire Production': ['Manager'],
   'Intérimaire Logistique': ['Manager'],
   'Intérimaire Administratif': ['Manager'],
-  
-  // Freelances / Consultants ponctuels
   'Freelance Développement': ['Manager'],
   'Freelance Design': ['Manager'],
   'Freelance Rédaction': ['Manager'],
-  
-  // Jobs saisonniers
   'Saisonnier Vente': ['Manager'],
   'Saisonnier Support': ['Manager'],
   'Saisonnier Production': ['Manager'],
-  
-  // Postes à temps partiel / auxiliaires
   'Auxiliaire Administratif': ['Manager'],
   'Assistant Temps Partiel': ['Manager'],
   'Aide-comptable Junior': ['Manager'],
-  
-  // Remplacements temporaires
   'Remplacement Court Terme': ['Manager'],
   'Congé Maternité Remplacement': ['Manager'],
   'Congé Maladie Remplacement': ['Manager'],
-  
-  // Postes sans impact budgétaire significatif
   'Technicien Niveau 1': ['Manager'],
   "Agent d'entretien": ['Manager'],
   'Manutentionnaire': ['Manager'],
@@ -391,92 +486,106 @@ const validationFlowsByJob: Record<string, string[]> = {
   'Opérateur de saisie': ['Manager'],
   'Archiviste': ['Manager'],
   'Coursier': ['Manager'],
-
-  // ===== POSTES OPERATIONNELS / EXECUTION =====
-  // Circuit standard : Manager → Directeur → DRH
-  'Développeur Full Stack': ['Manager', 'Directeur', 'DRH'],
-  'Développeur Frontend': ['Manager', 'Directeur', 'DRH'],
-  'Développeur Backend': ['Manager', 'Directeur', 'DRH'],
-  'Développeur Mobile': ['Manager', 'Directeur', 'DRH'],
-  'Data Analyst': ['Manager', 'Directeur', 'DRH'],
-  'QA Tester': ['Manager', 'Directeur', 'DRH'],
-  'Commercial': ['Manager', 'Directeur', 'DRH'],
-  'Community Manager': ['Manager', 'Directeur', 'DRH'],
-  'Graphiste': ['Manager', 'Directeur', 'DRH'],
-  'Conseiller Client': ['Manager', 'Directeur', 'DRH'],
-  'Téléconseiller': ['Manager', 'Directeur', 'DRH'],
-  'Magasinier': ['Manager', 'Directeur', 'DRH'],
-  'Comptable': ['Manager', 'Directeur', 'DRH'],
-  'Assistant de Direction': ['Manager', 'Directeur', 'DRH'],
-  'Formateur': ['Manager', 'Directeur', 'DRH'],
-  "Chef d'équipe": ['Manager', 'Directeur', 'DRH'],
-  'Planificateur': ['Manager', 'Directeur', 'DRH'],
-  'Support Technique': ['Manager', 'Directeur', 'DRH'],
-
-  // ===== POSTES SENIORS / EXPERTS =====
-  // Circuit avec DAF (impact budget/salaire plus élevé)
-  'Data Scientist': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'DevOps Engineer': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'UI/UX Designer': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'Contrôleur de Gestion': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'Analyste Financier': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'Business Developer': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'Account Manager': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  "Chargé d'Affaires": ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'Office Manager': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'Ingénieur Production': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'Responsable Logistique': ['Manager', 'Directeur', 'DRH', 'DAF'],
-  'Supply Chain Manager': ['Manager', 'Directeur', 'DRH', 'DAF'],
-
-  // ===== POSTES STRATEGIQUES / SENSIBLES =====
-  // Circuit avec DG (validation finale par Direction Générale)
-  'Chef de Projet IT': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Architecte Logiciel': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Product Owner': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Scrum Master': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Cyber Security Analyst': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Responsable Marketing': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Content Manager': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'SEO Specialist': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Marketing Digital': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Chef de Produit': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Responsable Commercial': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Auditeur Interne': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-  'Responsable Service Client': ['Directeur', 'DRH', 'DAF', 'DGA/DG'],
-
-  // ===== POSTES DE DIRECTION =====
-  // Circuit court : DRH → DAF → DG (pas de manager)
-  'Responsable RH': ['DRH', 'DAF', 'DGA/DG'],
-  'Chargé de Recrutement': ['DRH', 'DAF', 'DGA/DG'],
-  'Gestionnaire de Paie': ['DRH', 'DAF', 'DGA/DG'],
-  'HR Business Partner': ['DRH', 'DAF', 'DGA/DG'],
-  'Directeur Commercial': ['DRH', 'DAF', 'DGA/DG'],
-  'Directeur Financier': ['DRH', 'DAF', 'DGA/DG'],
-  'Chef Comptable': ['DRH', 'DAF', 'DGA/DG'],
-  'Directeur Administratif': ['DRH', 'DAF', 'DGA/DG'],
-  'Administrateur Système': ['DRH', 'DAF', 'DGA/DG'],
-
-  // ===== TOP MANAGEMENT =====
-  // Validation uniquement par DG
+  'Développeur Full Stack': ['Directeur', 'DRH'],
+  'Développeur Frontend': ['Directeur', 'DRH'],
+  'Développeur Backend': ['Directeur', 'DRH'],
+  'Développeur Mobile': ['Directeur', 'DRH'],
+  'Data Analyst': ['Directeur', 'DRH'],
+  'QA Tester': ['Directeur', 'DRH'],
+  'Commercial': ['Directeur', 'DRH'],
+  'Community Manager': ['Directeur', 'DRH'],
+  'Graphiste': ['Directeur', 'DRH'],
+  'Conseiller Client': ['Directeur', 'DRH'],
+  'Téléconseiller': ['Directeur', 'DRH'],
+  'Magasinier': ['Directeur', 'DRH'],
+  'Comptable': ['Directeur', 'DRH'],
+  'Assistant de Direction': ['Directeur', 'DRH'],
+  'Formateur': ['Directeur', 'DRH'],
+  "Chef d'équipe": ['Directeur', 'DRH'],
+  'Planificateur': ['Directeur', 'DRH'],
+  'Support Technique': ['Directeur', 'DRH'],
+  'Data Scientist': ['Directeur', 'DRH', 'DAF'],
+  'DevOps Engineer': ['Directeur', 'DRH', 'DAF'],
+  'UI/UX Designer': ['Directeur', 'DRH', 'DAF'],
+  'Contrôleur de Gestion': ['Directeur', 'DRH', 'DAF'],
+  'Analyste Financier': ['Directeur', 'DRH', 'DAF'],
+  'Business Developer': ['Directeur', 'DRH', 'DAF'],
+  'Account Manager': ['Directeur', 'DRH', 'DAF'],
+  "Chargé d'Affaires": ['Directeur', 'DRH', 'DAF'],
+  'Office Manager': ['Directeur', 'DRH', 'DAF'],
+  'Ingénieur Production': ['Directeur', 'DRH', 'DAF'],
+  'Responsable Logistique': ['Directeur', 'DRH', 'DAF'],
+  'Supply Chain Manager': ['Directeur', 'DRH', 'DAF'],
+  'Chef de Projet IT': ['DRH', 'DAF', 'DGA/DG'],
+  'Architecte Logiciel': ['DRH', 'DAF', 'DGA/DG'],
+  'Product Owner': ['DRH', 'DAF', 'DGA/DG'],
+  'Scrum Master': ['DRH', 'DAF', 'DGA/DG'],
+  'Cyber Security Analyst': ['DRH', 'DAF', 'DGA/DG'],
+  'Responsable Marketing': ['DRH', 'DAF', 'DGA/DG'],
+  'Content Manager': ['DRH', 'DAF', 'DGA/DG'],
+  'SEO Specialist': ['DRH', 'DAF', 'DGA/DG'],
+  'Marketing Digital': ['DRH', 'DAF', 'DGA/DG'],
+  'Chef de Produit': ['DRH', 'DAF', 'DGA/DG'],
+  'Responsable Commercial': ['DRH', 'DAF', 'DGA/DG'],
+  'Auditeur Interne': ['DRH', 'DAF', 'DGA/DG'],
+  'Responsable Service Client': ['DRH', 'DAF', 'DGA/DG'],
+  'Responsable RH': ['DAF', 'DGA/DG'],
+  'Chargé de Recrutement': ['DAF', 'DGA/DG'],
+  'Gestionnaire de Paie': ['DAF', 'DGA/DG'],
+  'HR Business Partner': ['DAF', 'DGA/DG'],
+  'Directeur Commercial': ['DAF', 'DGA/DG'],
+  'Directeur Financier': ['DAF', 'DGA/DG'],
+  'Chef Comptable': ['DAF', 'DGA/DG'],
+  'Directeur Administratif': ['DAF', 'DGA/DG'],
+  'Administrateur Système': ['DAF', 'DGA/DG'],
   'Directeur Général': ['DGA/DG'],
 };
 
-// Circuit par défaut pour les postes non listés
-const defaultValidationFlow = ['Manager', 'Directeur', 'DRH'];
+const defaultValidationFlow = ['Directeur', 'DRH'];
 
 const skillSuggestions = [
-  'React', 'Node.js', 'TypeScript', 'Python', 'Java',
-  'AWS', 'Docker', 'Kubernetes', 'Agile', 'Scrum',
-  'Management', 'Communication', 'Anglais', 'Projet',
-  'Excel', 'PowerPoint', 'Word', 'SAP', 'Salesforce',
-  'Photoshop', 'Illustrator', 'Figma', 'WordPress',
-  'SEO', 'Google Analytics', 'CRM', 'Gestion d\'équipe'
+  'Management', 'Communication', 'Anglais', 'Excel', 'PowerPoint', 'Word', 
 ];
 
-const levelOptions = ['Stagiaire', 'Junior', 'Confirmé', 'Senior', 'Expert', 'Lead'];
+const levelOptions = [
+  'Baccalauréat',
+  'Bac+2 (DUT, BTS)',
+  'Licence (Bac+3)',
+  'Master (Bac+5)',
+  'Diplôme d\'Ingénieur',
+  'Doctorat (PhD)'
+];
+
 const experienceOptions = ['0-1 an', '1-3 ans', '3-5 ans', '5-8 ans', '8+ ans'];
 
-// Composant pour le détail de la cause de recrutement
+// Styles statiques pour les couleurs
+const colorStyles = {
+  emerald: {
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    iconBg: 'bg-emerald-100',
+    text: 'text-emerald-600',
+    title: 'text-emerald-900',
+    description: 'text-emerald-700'
+  },
+  amber: {
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+    iconBg: 'bg-amber-100',
+    text: 'text-amber-600',
+    title: 'text-amber-900',
+    description: 'text-amber-700'
+  },
+  violet: {
+    bg: 'bg-violet-50',
+    border: 'border-violet-200',
+    iconBg: 'bg-violet-100',
+    text: 'text-violet-600',
+    title: 'text-violet-900',
+    description: 'text-violet-700'
+  }
+};
+
 function RecruitmentCauseDetails({ 
   reason, 
   onDataChange,
@@ -502,6 +611,7 @@ function RecruitmentCauseDetails({
   if (!reasonConfig) return null;
 
   const Icon = reasonConfig.icon;
+  const styles = colorStyles[reasonConfig.color as keyof typeof colorStyles];
 
   const handleChange = (field: keyof RecruitmentCauseDetail, value: any) => {
     setDetails(prev => ({ ...prev, [field]: value }));
@@ -509,17 +619,16 @@ function RecruitmentCauseDetails({
 
   return (
     <div className="mt-6 space-y-6">
-      {/* En-tête avec couleur dynamique */}
-      <div className={`p-4 rounded-xl bg-${reasonConfig.color}-50 border border-${reasonConfig.color}-200`}>
+      <div className={`p-4 rounded-xl ${styles.bg} border ${styles.border}`}>
         <div className="flex items-start space-x-4">
-          <div className={`p-3 rounded-lg bg-${reasonConfig.color}-100`}>
-            <Icon className={`w-6 h-6 text-${reasonConfig.color}-600`} />
+          <div className={`p-3 rounded-lg ${styles.iconBg}`}>
+            <Icon className={`w-6 h-6 ${styles.text}`} />
           </div>
           <div className="flex-1">
-            <h4 className={`text-lg font-semibold text-${reasonConfig.color}-900`}>
+            <h4 className={`text-lg font-semibold ${styles.title}`}>
               {reason}
             </h4>
-            <p className={`text-sm text-${reasonConfig.color}-700`}>
+            <p className={`text-sm ${styles.description}`}>
               {reasonConfig.description}
             </p>
           </div>
@@ -527,7 +636,6 @@ function RecruitmentCauseDetails({
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Sous-motif */}
         <div>
           <label className="block mb-2 text-sm font-medium text-slate-700">
             Type <span className="text-red-500">*</span>
@@ -549,7 +657,6 @@ function RecruitmentCauseDetails({
           )}
         </div>
 
-        {/* Niveau d'urgence */}
         <div>
           <label className="block mb-2 text-sm font-medium text-slate-700">
             Niveau d'urgence <span className="text-red-500">*</span>
@@ -567,7 +674,6 @@ function RecruitmentCauseDetails({
         </div>
       </div>
 
-      {/* Questions contextuelles */}
       <div className="p-4 rounded-lg bg-slate-50">
         <div className="flex items-center mb-3 space-x-2">
           <Info className="w-4 h-4 text-slate-600" />
@@ -583,7 +689,7 @@ function RecruitmentCauseDetails({
               </label>
               <input
                 type="text"
-                value={details[`answer${index}` as keyof RecruitmentCauseDetail] || ''}
+                value={details[`answer${index}`] || ''}
                 onChange={(e) => handleChange(`answer${index}` as any, e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg border-slate-300/70"
                 placeholder="Votre réponse..."
@@ -593,7 +699,6 @@ function RecruitmentCauseDetails({
         </div>
       </div>
 
-      {/* Description détaillée */}
       <div>
         <label className="block mb-2 text-sm font-medium text-slate-700">
           Description détaillée du besoin <span className="text-red-500">*</span>
@@ -621,13 +726,12 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [recruitmentDetails, setRecruitmentDetails] = useState<any>(null);
   const [validationFlow, setValidationFlow] = useState<string[]>([]);
+  const [salaryError, setSalaryError] = useState<string>('');
   
-  // États pour les recherches
   const [searchJob, setSearchJob] = useState('');
   const [searchDept, setSearchDept] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
   
-  // États pour afficher/masquer les dropdowns
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
@@ -638,14 +742,15 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
     location: '',
     contractType: 'CDI',
     reason: 'Création de poste',
-    budget: '',
+    salaryMin: '',
+    salaryMax: '',
     requiredSkills: '',
     description: '',
     urgent: false,
     startDate: '',
     replacementName: '',
     replacementReason: '',
-    level: 'Junior',
+    level: 'Bac+2 (DUT, BTS)',
     experience: '1-3 ans',
     remote: false,
     travelRequired: false
@@ -668,7 +773,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
     }));
   }, []);
 
-  // Fermer les dropdowns quand on clique ailleurs
   useEffect(() => {
     const handleClickOutside = () => {
       setShowJobDropdown(false);
@@ -699,13 +803,40 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
       newErrors.description = 'La description est requise';
     }
 
-    // Validation des détails de la cause
+    // Vérifier les salaires seulement si ce n'est pas un stage ou alternance
+    const isStageOrIntern = 
+      formData.contractType === 'Stage' || 
+      formData.contractType === 'Alternance' ||
+      formData.title.toLowerCase().includes('stagiaire') ||
+      formData.title.toLowerCase().includes('alternant');
+
+    if (!isStageOrIntern) {
+      if (!formData.salaryMin) {
+        newErrors.salaryMin = 'Le salaire minimum est requis';
+      }
+      if (!formData.salaryMax) {
+        newErrors.salaryMax = 'Le salaire maximum est requis';
+      }
+    }
+
+    if (formData.salaryMin && formData.salaryMax) {
+      const min = parseFloat(formData.salaryMin);
+      const max = parseFloat(formData.salaryMax);
+      if (min >= max) {
+        setSalaryError('Le salaire minimum doit être inférieur au salaire maximum');
+      } else if (min === max) {
+        setSalaryError('Les salaires minimum et maximum doivent être différents');
+      } else {
+        setSalaryError('');
+      }
+    }
+
     if (recruitmentDetails) {
       if (!recruitmentDetails.subReason) {
         newErrors.subReason = 'Le type est requis';
       }
       if (!recruitmentDetails.description) {
-        newErrors.description = 'La description détaillée est requise';
+        newErrors.detailedDescription = 'La description détaillée est requise';
       }
     }
     
@@ -721,121 +852,79 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
       return;
     }
 
+    if (salaryError) {
+      toast.error(salaryError);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Déterminer le circuit de validation final
       let finalValidationFlow = validationFlow;
       
-      // Si pas de circuit spécifique, déterminer en fonction du type de contrat et du niveau
       if (finalValidationFlow.length === 0) {
-        // Cas des postes temporaires/stagiaires
         if (formData.contractType === 'Stage' || 
             formData.contractType === 'Alternance' || 
             formData.contractType === 'Intérim' || 
             formData.contractType === 'CDD Court (<3 mois)' || 
-            formData.contractType === 'Saisonnier' ||
-            formData.level === 'Stagiaire') {
+            formData.contractType === 'Saisonnier') {
           finalValidationFlow = ['Manager'];
-        } 
-        // Cas des postes juniors
-        else if (formData.level === 'Junior' || formData.level === 'Confirmé') {
+        } else if (formData.level === 'Baccalauréat' || formData.level === 'Bac+2 (DUT, BTS)') {
           finalValidationFlow = ['Manager', 'Directeur', 'DRH'];
-        }
-        // Cas des postes seniors
-        else if (formData.level === 'Senior' || formData.level === 'Expert') {
+        } else if (formData.level === 'Master (Bac+5)' || formData.level === 'Diplôme d\'Ingénieur') {
           finalValidationFlow = ['Manager', 'Directeur', 'DRH', 'DAF'];
-        }
-        // Cas des postes de direction
-        else if (formData.level === 'Lead' || formData.title.includes('Directeur') || formData.title.includes('Responsable')) {
+        } else if (formData.title.includes('Directeur') || formData.title.includes('Responsable')) {
           finalValidationFlow = ['DRH', 'DAF', 'DGA/DG'];
-        }
-        // Circuit par défaut
-        else {
+        } else {
           finalValidationFlow = ['Manager', 'Directeur', 'DRH'];
         }
       }
 
-      // S'assurer que le circuit de validation n'est pas vide
       if (finalValidationFlow.length === 0) {
         finalValidationFlow = ['Manager', 'Directeur', 'DRH'];
       }
 
-      // 🔴 CORRECTION: Utiliser les statuts en français comme dans RecruitmentRequestList
       let status = 'En attente';
       let current_validation_level = finalValidationFlow[0];
 
-      // Si circuit simplifié (Manager uniquement), on valide directement
       if (finalValidationFlow.length === 1 && finalValidationFlow[0] === 'Manager') {
         status = 'Validées';
         current_validation_level = 'Validé';
       }
 
-      // Préparer les données pour l'envoi
       const requestData = {
-        // Informations de base
-        title: formData.title.trim(),
-        department: formData.department.trim(),
-        location: formData.location.trim(),
-        contract_type: formData.contractType,
-        
-        // Cause du recrutement
-        reason: formData.reason,
-        reason_details: recruitmentDetails || {},
-        
-        // Budget et rémunération
-        budget: formData.budget ? parseInt(formData.budget, 10) : null,
-        
-        // Compétences et description
-        required_skills: formData.requiredSkills 
-          ? formData.requiredSkills.split(',').map(s => s.trim()).filter(Boolean)
-          : [],
-        description: formData.description.trim(),
-        
-        // Niveau et expérience
-        level: formData.level,
-        experience: formData.experience,
-        
-        // Dates et conditions
-        start_date: formData.startDate,
-        remote_work: formData.remote || false,
-        travel_required: formData.travelRequired || false,
-        
-        // Urgence et priorité
-        urgent: formData.urgent || (recruitmentDetails?.urgencyLevel === 'high' || recruitmentDetails?.urgencyLevel === 'critical'),
-        priority: recruitmentDetails?.urgencyLevel || (formData.urgent ? 'high' : 'medium'),
-        
-        // Informations de remplacement (si applicable)
-        replacement_name: formData.replacementName?.trim() || null,
-        replacement_reason: formData.replacementReason?.trim() || null,
-        
-        // Informations créateur
-        created_by: user?.id,
-        created_by_name: user?.full_name || user?.email,
-        created_by_role: user?.role || 'Manager',
-        
-        // CIRCUIT DE VALIDATION COMPLET
-        validation_flow: finalValidationFlow,
-        
-        // ✅ STATUTS EN FRANÇAIS (corrigé)
-        status: status,
-        current_validation_level: current_validation_level,
-        
-        // Métadonnées supplémentaires
-        created_at: new Date().toISOString()
-      };
+  title: formData.title.trim(),
+  department: formData.department.trim(),
+  location: formData.location.trim(),
+  contract_type: formData.contractType,
+  reason: formData.reason,
+  reason_details: recruitmentDetails || {},
+  salary_min: formData.salaryMin ? parseFloat(formData.salaryMin) : null,  // ⚠️ Attention: c'est salary_min (avec underscore)
+  salary_max: formData.salaryMax ? parseFloat(formData.salaryMax) : null,  // ⚠️ Attention: c'est salary_max (avec underscore)
+  required_skills: formData.requiredSkills 
+    ? formData.requiredSkills.split(',').map(s => s.trim()).filter(Boolean)
+    : [],
+  description: formData.description.trim(),
+  level: formData.level,
+  experience: formData.experience,
+  start_date: formData.startDate,
+  remote_work: formData.remote || false,
+  travel_required: formData.travelRequired || false,
+  urgent: formData.urgent || (recruitmentDetails?.urgencyLevel === 'high' || recruitmentDetails?.urgencyLevel === 'critical'),
+  priority: recruitmentDetails?.urgencyLevel || (formData.urgent ? 'high' : 'medium'),
+  replacement_name: formData.replacementName?.trim() || null,
+  replacement_reason: formData.replacementReason?.trim() || null,
+  created_by: user?.id,
+  created_by_name: user?.full_name || user?.email,
+  created_by_role: user?.role || 'Manager',
+  validation_flow: finalValidationFlow,
+  status: status,
+  current_validation_level: current_validation_level,
+  created_at: new Date().toISOString()
+    };
 
-      // Log pour le débogage
-      console.log('📤 Envoi de la demande de recrutement:', {
-        title: requestData.title,
-        department: requestData.department,
-        validation_flow: requestData.validation_flow,
-        status: requestData.status,
-        current_level: requestData.current_validation_level,
-        isAutoValidated: finalValidationFlow.length === 1 && finalValidationFlow[0] === 'Manager'
-      });
+     console.log('📤 Envoi des données:', requestData); // Debug
 
-      // Envoi de la requête
       const res = await fetch('http://localhost:5000/api/recruitment/new-request', {
         method: 'POST',
         headers: { 
@@ -845,29 +934,24 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
         body: JSON.stringify(requestData)
       });
 
-      // Récupération de la réponse
       const responseData = await res.json();
 
       if (!res.ok) {
         throw new Error(responseData.message || `Erreur ${res.status}: ${res.statusText}`);
       }
 
-      // Message de succès adapté
       if (status === 'Validées') {
         toast.success('Demande validée automatiquement !');
       } else {
         toast.success('Demande de recrutement créée avec succès !');
       }
       
-      // Appeler les callbacks de succès
       onSuccess();
       onClose();
 
     } catch (err: any) {
-      // Gestion des erreurs
       console.error('❌ Erreur lors de la création de la demande:', err);
       
-      // Message d'erreur personnalisé selon le type d'erreur
       if (err.message.includes('401')) {
         toast.error('Session expirée. Veuillez vous reconnecter.');
       } else if (err.message.includes('403')) {
@@ -906,38 +990,27 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
     handleChange('requiredSkills', newSkills);
   };
 
-  // Fonction pour déterminer le circuit de validation en fonction du poste et du type de contrat
   const getValidationFlow = (jobTitle: string, contractType: string): string[] => {
-    // Vérifier d'abord si le poste a un circuit spécifique
     const specificFlow = validationFlowsByJob[jobTitle];
     if (specificFlow) {
       return specificFlow;
     }
 
-    // Sinon, déterminer en fonction du type de contrat et du niveau
     if (contractType === 'Stage' || contractType === 'Alternance' || contractType === 'Intérim' || contractType === 'CDD Court (<3 mois)' || contractType === 'Saisonnier') {
       return ['Manager'];
     }
 
-    // Circuit par défaut
     return defaultValidationFlow;
   };
 
-  // Fonction pour gérer la sélection d'un poste et son circuit
   const handleJobSelect = (job: string) => {
-    // Met à jour le titre du poste dans le formulaire
     handleChange('title', job);
-
-    // Récupère le circuit de validation correspondant au poste et au type de contrat
     const circuit = getValidationFlow(job, formData.contractType);
     setValidationFlow(circuit);
-
-    // Ferme le dropdown et vide la recherche
     setShowJobDropdown(false);
     setSearchJob('');
   };
 
-  // Mettre à jour le circuit quand le type de contrat change
   useEffect(() => {
     if (formData.title) {
       const circuit = getValidationFlow(formData.title, formData.contractType);
@@ -945,7 +1018,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
     }
   }, [formData.contractType, formData.title]);
 
-  // Filtrer les listes en fonction de la recherche
   const filteredJobs = jobTitlesList.filter(job => 
     job.toLowerCase().includes(searchJob.toLowerCase())
   );
@@ -958,10 +1030,16 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
     loc.toLowerCase().includes(searchLocation.toLowerCase())
   );
 
+  // Vérifier si c'est un stage ou alternance pour les salaires
+  const isStageOrIntern = 
+    formData.contractType === 'Stage' || 
+    formData.contractType === 'Alternance' ||
+    formData.title.toLowerCase().includes('stagiaire') ||
+    formData.title.toLowerCase().includes('alternant');
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-black/50 backdrop-blur-sm">
       <div className="bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] overflow-hidden border border-white/30 my-8">
-        {/* En-tête */}
         <div className="sticky top-0 z-20 px-8 py-6 border-b bg-gradient-to-r from-white/95 to-white/90 backdrop-blur-xl border-slate-200/50">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -992,9 +1070,7 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
 
         <form onSubmit={handleSubmit} className="p-8 overflow-y-auto max-h-[calc(95vh-180px)]">
           <div className="space-y-6">
-            {/* Première ligne : Titre et Département */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Titre du poste avec dropdown */}
               <div className="p-6 transition-shadow bg-white border shadow-sm border-slate-200/70 rounded-2xl hover:shadow-md">
                 <div className="flex items-center mb-4 space-x-3">
                   <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl">
@@ -1029,7 +1105,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                     />
                   </div>
                   
-                  {/* Dropdown des postes */}
                   {showJobDropdown && (
                     <div className="absolute z-30 w-full mt-1 overflow-y-auto bg-white border shadow-xl border-slate-200 rounded-xl max-h-60">
                       <div className="sticky top-0 p-2 bg-white border-b border-slate-100">
@@ -1074,9 +1149,7 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                 )}
               </div>
 
-              {/* Détails organisationnels avec dropdowns */}
               <div className="grid grid-cols-2 gap-4">
-                {/* Département avec dropdown */}
                 <div className="p-5 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
                   <label className="flex items-center mb-3 space-x-2 text-sm font-medium text-slate-700">
                     <Building className="w-4 h-4" />
@@ -1106,7 +1179,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                       />
                     </div>
                     
-                    {/* Dropdown des départements */}
                     {showDeptDropdown && (
                       <div className="absolute z-30 w-full mt-1 overflow-y-auto bg-white border rounded-lg shadow-xl border-slate-200 max-h-48">
                         <div className="sticky top-0 p-2 bg-white border-b border-slate-100">
@@ -1141,7 +1213,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                   </div>
                 </div>
 
-                {/* Localisation avec dropdown */}
                 <div className="p-5 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
                   <label className="flex items-center mb-3 space-x-2 text-sm font-medium text-slate-700">
                     <Globe className="w-4 h-4" />
@@ -1171,7 +1242,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                       />
                     </div>
                     
-                    {/* Dropdown des localisations */}
                     {showLocationDropdown && (
                       <div className="absolute z-30 w-full mt-1 overflow-y-auto bg-white border rounded-lg shadow-xl border-slate-200 max-h-48">
                         <div className="sticky top-0 p-2 bg-white border-b border-slate-100">
@@ -1215,7 +1285,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
               </div>
             </div>
 
-            {/* Deuxième ligne : Détails du contrat */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="p-6 border bg-gradient-to-br from-blue-50/50 to-cyan-50/50 border-blue-200/50 rounded-2xl">
                 <div className="flex items-center mb-6 space-x-3">
@@ -1246,7 +1315,7 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
 
                   <div>
                     <label className="block mb-2 text-sm font-medium text-slate-700">
-                      Niveau
+                      Niveau d'études
                     </label>
                     <select
                       value={formData.level}
@@ -1290,7 +1359,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                 </div>
               </div>
 
-              {/* Options de travail */}
               <div className="p-5 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -1315,7 +1383,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
               </div>
             </div>
 
-            {/* SECTION AMÉLIORÉE : Cause de recrutement */}
             <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
               <div className="flex items-center mb-4 space-x-3">
                 <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl">
@@ -1332,24 +1399,17 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                 onChange={(e) => handleChange('reason', e.target.value)}
                 className="w-full px-4 py-3 mb-4 border rounded-lg bg-slate-50/50 border-slate-300/70"
               >
-                {Object.keys(recruitmentReasons).map(reason => {
-                  const Icon = recruitmentReasons[reason as keyof typeof recruitmentReasons].icon;
-                  return (
-                    <option key={reason} value={reason}>
-                      {reason}
-                    </option>
-                  );
-                })}
+                {Object.keys(recruitmentReasons).map(reason => (
+                  <option key={reason} value={reason}>{reason}</option>
+                ))}
               </select>
 
-              {/* Détails améliorés de la cause */}
               <RecruitmentCauseDetails
                 reason={formData.reason}
                 onDataChange={setRecruitmentDetails}
                 errors={errors}
               />
 
-              {/* Affichage conditionnel pour l'ancien système (conservé pour compatibilité) */}
               {formData.reason === 'Remplacement' && (
                 <div className="p-4 mt-4 space-y-4 border bg-gradient-to-br from-amber-50/50 to-orange-50/50 border-amber-200/50 rounded-xl">
                   <div>
@@ -1365,9 +1425,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                       } rounded-lg`}
                       placeholder="Nom et prénom"
                     />
-                    {errors.replacementName && (
-                      <p className="mt-2 text-sm text-red-600">{errors.replacementName}</p>
-                    )}
                   </div>
                   <div>
                     <label className="block mb-2 text-sm font-medium text-amber-800">
@@ -1385,7 +1442,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
               )}
             </div>
 
-            {/* Troisième ligne : Description détaillée */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
                 <div className="flex items-center mb-4 space-x-3">
@@ -1417,7 +1473,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                 </div>
               </div>
 
-              {/* Budget et urgence */}
               <div className="space-y-4">
                 <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
                   <div className="flex items-center mb-4 space-x-3">
@@ -1425,17 +1480,58 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                       <DollarSign className="w-6 h-6 text-green-600" />
                     </div>
                     <div>
-                      <label className="block text-lg font-semibold text-slate-900">Salaire (DT)</label>
-                      <p className="text-sm text-slate-600">Rémunération brute</p>
+                      <h4 className="font-semibold text-slate-900">Fourchette salariale</h4>
+                      <p className="text-sm text-slate-600">Salaire mensuel brut</p>
                     </div>
                   </div>
-                  <input
-                    type="number"
-                    value={formData.budget}
-                    onChange={(e) => handleChange('budget', e.target.value)}
-                    className="w-full px-4 py-3 border rounded-lg bg-slate-50/50 border-slate-300/70"
-                    placeholder="Ex: 45000"
+
+                  <SalaryRangeInput
+                    minValue={formData.salaryMin}
+                    maxValue={formData.salaryMax}
+                    onMinChange={(value) => handleChange('salaryMin', value)}
+                    onMaxChange={(value) => handleChange('salaryMax', value)}
+                    error={salaryError}
+                    currency="DT"
+                    required={!isStageOrIntern}
                   />
+
+                  {formData.title && !isStageOrIntern && (
+                    <SalarySuggestions
+                      jobTitle={formData.title}
+                      experience={formData.experience}
+                      onSelect={(min, max) => {
+                        handleChange('salaryMin', min);
+                        handleChange('salaryMax', max);
+                        setSalaryError('');
+                        toast.success('Fourchette salariale appliquée');
+                      }}
+                    />
+                  )}
+
+                  {(formData.salaryMin && formData.salaryMax && parseFloat(formData.salaryMin) < parseFloat(formData.salaryMax)) && (
+                    <div className="p-3 mt-4 border rounded-lg bg-slate-50 border-slate-200">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">Salaire mensuel brut</span>
+                        <span className="font-semibold text-slate-900">
+                          {new Intl.NumberFormat('fr-FR').format(parseFloat(formData.salaryMin))} - {new Intl.NumberFormat('fr-FR').format(parseFloat(formData.salaryMax))} DT
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 text-sm">
+                        <span className="text-slate-600">Salaire annuel brut estimé</span>
+                        <span className="font-semibold text-slate-900">
+                          {new Intl.NumberFormat('fr-FR').format(parseFloat(formData.salaryMin) * 12)} - {new Intl.NumberFormat('fr-FR').format(parseFloat(formData.salaryMax) * 12)} DT
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {isStageOrIntern && (
+                    <div className="p-3 mt-4 border border-blue-200 rounded-lg bg-blue-50">
+                      <p className="text-sm text-blue-700">
+                        ℹ️ Pour les stages et alternances, la fourchette salariale n'est pas requise. Vous pourrez définir la gratification ou le salaire dans l'offre.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-6 border bg-gradient-to-br from-red-50/50 to-orange-50/50 border-red-200/50 rounded-2xl">
@@ -1471,7 +1567,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
               </div>
             </div>
 
-            {/* Quatrième ligne : Compétences requises */}
             <div className="p-6 bg-white border shadow-sm border-slate-200/70 rounded-2xl">
               <div className="flex items-center mb-4 space-x-3">
                 <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
@@ -1506,7 +1601,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
                 />
               </div>
 
-              {/* Liste des compétences sélectionnées */}
               {formData.requiredSkills && (
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
@@ -1536,7 +1630,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
               )}
             </div>
 
-            {/* Circuit de validation */}
             <div className="pt-8 mt-8 border-t border-emerald-200">
               <h5 className="mb-4 font-semibold text-slate-900">Circuit de validation</h5>
               <div className="flex items-center justify-between">
@@ -1582,7 +1675,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
               )}
             </div>
 
-            {/* Boutons d'action */}
             <div className="flex items-center justify-end pt-6 space-x-4 border-t border-slate-200">
               <button
                 type="button"

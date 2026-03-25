@@ -132,36 +132,110 @@ router.post('/new-request', async (req, res) => {
   try {
     await client.query('BEGIN');
     
+    console.log('📥 Données reçues:', req.body); // Debug
+    
     const {
-      title, department, location, contract_type, reason, reason_details,
-      budget, required_skills, description, urgent, status, current_validation_level,
-      created_by, created_by_name, created_by_role, replacement_name, replacement_reason,
-      start_date, level, experience, remote_work, travel_required, priority,
+      title, 
+      department, 
+      location, 
+      contract_type, 
+      reason, 
+      reason_details,
+      salary_min,  // ⚠️ Attention: c'est salary_min et non salaryMin
+      salary_max,  // ⚠️ Attention: c'est salary_max et non salaryMax
+      required_skills, 
+      description, 
+      urgent, 
+      status, 
+      current_validation_level,
+      created_by, 
+      created_by_name, 
+      created_by_role, 
+      replacement_name, 
+      replacement_reason,
+      start_date, 
+      level, 
+      experience, 
+      remote_work, 
+      travel_required, 
+      priority,
       validation_flow
     } = req.body;
+
+    // Validation des salaires
+    if (salary_min && salary_max && parseFloat(salary_min) >= parseFloat(salary_max)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Le salaire minimum doit être inférieur au salaire maximum'
+      });
+    }
+
+    console.log('💰 Salaires à insérer:', { salary_min, salary_max }); // Debug
 
     // Insertion de la demande
     const result = await client.query(
       `INSERT INTO recruitment_requests (
-        title, department, location, contract_type, reason, reason_details,
-        budget, required_skills, description, urgent, status, current_validation_level,
-        created_by, created_by_name, created_by_role, replacement_name, replacement_reason,
-        start_date, level, experience, remote_work, travel_required, priority,
-        validation_flow, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, NOW())
+        title, 
+        department, 
+        location, 
+        contract_type, 
+        reason, 
+        reason_details,
+        salary_min, 
+        salary_max, 
+        required_skills, 
+        description, 
+        urgent, 
+        status, 
+        current_validation_level,
+        created_by, 
+        created_by_name, 
+        created_by_role, 
+        replacement_name, 
+        replacement_reason,
+        start_date, 
+        level, 
+        experience, 
+        remote_work, 
+        travel_required, 
+        priority,
+        validation_flow, 
+        created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, NOW())
       RETURNING *`,
       [
-        title, department, location, contract_type, reason, reason_details,
-        budget, required_skills, description, urgent, status, current_validation_level,
-        created_by, created_by_name, created_by_role, replacement_name, replacement_reason,
-        start_date, level, experience, remote_work, travel_required, priority,
+        title, 
+        department, 
+        location, 
+        contract_type, 
+        reason, 
+        reason_details,
+        salary_min || null,  // Si undefined ou null, mettre null
+        salary_max || null,  // Si undefined ou null, mettre null
+        required_skills, 
+        description, 
+        urgent, 
+        status, 
+        current_validation_level,
+        created_by, 
+        created_by_name, 
+        created_by_role, 
+        replacement_name, 
+        replacement_reason,
+        start_date, 
+        level, 
+        experience, 
+        remote_work || false, 
+        travel_required || false, 
+        priority,
         validation_flow
       ]
     );
 
     const newRequest = result.rows[0];
+    console.log('✅ Demande créée:', newRequest.id, 'Salaires:', newRequest.salary_min, newRequest.salary_max);
 
-    // Si la demande est automatiquement validée (circuit simplifié), créer l'entrée dans validation_tracking
+    // Si la demande est automatiquement validée
     if (status === 'Validated' && validation_flow && validation_flow.length === 1 && validation_flow[0] === 'Manager') {
       await client.query(
         `INSERT INTO validation_tracking (
@@ -181,17 +255,25 @@ router.post('/new-request', async (req, res) => {
         ]
       );
       
-      // Créer automatiquement l'offre d'emploi
+      // Créer l'offre d'emploi
       const deadline = new Date();
       deadline.setDate(deadline.getDate() + 30);
+      
+      // Calculer le budget annuel si les salaires sont fournis
+      let annualBudget = null;
+      if (salary_min && salary_max) {
+        const avgMonthly = (parseFloat(salary_min) + parseFloat(salary_max)) / 2;
+        annualBudget = avgMonthly * 12;
+      }
       
       await client.query(
         `INSERT INTO job_offers (
           request_id, title, department, location, contract_type, description,
-          required_skills, level, experience, budget, remote_work, travel_required,
-          start_date, benefits, publication_date, application_deadline, status,
+          required_skills, level, experience, budget, salary_min, salary_max,
+          remote_work, travel_required, start_date, benefits,
+          publication_date, application_deadline, status,
           created_by, created_by_name, published_by, published_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
         [
           newRequest.id,
           title,
@@ -202,20 +284,24 @@ router.post('/new-request', async (req, res) => {
           required_skills || [],
           level,
           experience,
-          budget,
+          annualBudget,
+          salary_min || null,
+          salary_max || null,
           remote_work || false,
           travel_required || false,
           start_date,
           ['Tickets restaurant', 'Mutuelle', 'Télétravail'],
-          new Date().toISOString().split('T')[0],
+          null,
           deadline.toISOString().split('T')[0],
-          'published',
+          'draft',
           created_by,
           created_by_name,
-          created_by_name,
-          new Date()
+          null,
+          null
         ]
       );
+      
+      console.log(`✅ Offre d'emploi créée en BROUILLON pour la demande ${newRequest.id}`);
     }
 
     await client.query('COMMIT');
@@ -223,7 +309,7 @@ router.post('/new-request', async (req, res) => {
     res.status(201).json({
       success: true,
       message: status === 'Validated' 
-        ? 'Demande créée et validée automatiquement'
+        ? 'Demande créée et validée automatiquement, offre en brouillon'
         : 'Demande créée avec succès',
       request: newRequest
     });
@@ -239,7 +325,7 @@ router.post('/new-request', async (req, res) => {
   } finally {
     client.release();
   }
-});
+}); 
 
 // POST /api/recruitment-requests/:id/validate - Valider une demande (étape par étape)
 router.post('/:id/validate', async (req, res) => {
@@ -327,7 +413,7 @@ router.post('/:id/validate', async (req, res) => {
       );
 
       if (existingOffer.rows.length === 0) {
-        // Créer l'offre d'emploi
+        // Créer l'offre d'emploi en BROUILLON
         const deadline = new Date();
         deadline.setDate(deadline.getDate() + 30);
         
@@ -353,22 +439,24 @@ router.post('/:id/validate', async (req, res) => {
             request.travel_required || false,
             request.start_date,
             ['Tickets restaurant', 'Mutuelle', 'Télétravail'],
-            new Date().toISOString().split('T')[0],
+            null, // publication_date reste null car non publiée
             deadline.toISOString().split('T')[0],
-            'published',
+            'draft', // ✅ Statut DRAFT
             request.created_by,
             request.created_by_name,
-            validator_name,
-            new Date()
+            null, // published_by reste null
+            null  // published_at reste null
           ]
         );
+        
+        console.log(`✅ Offre d'emploi créée en BROUILLON pour la demande ${id}`);
       }
       
       await client.query('COMMIT');
       
       res.json({
         success: true,
-        message: 'Demande validée avec succès et offre créée',
+        message: 'Demande validée avec succès et offre créée en brouillon',
         status: 'Validated',
         nextLevel: null
       });
@@ -401,7 +489,7 @@ router.post('/:id/validate', async (req, res) => {
   } finally {
     client.release();
   }
-});
+}); 
 
 // POST /api/recruitment-requests/:id/validate-manager-only - Validation automatique pour circuit simplifié
 router.post('/:id/validate-manager-only', async (req, res) => {
@@ -479,7 +567,7 @@ router.post('/:id/validate-manager-only', async (req, res) => {
     );
 
     if (existingOffer.rows.length === 0) {
-      // Créer l'offre d'emploi
+      // Créer l'offre d'emploi en BROUILLON
       const deadline = new Date();
       deadline.setDate(deadline.getDate() + 30);
       
@@ -505,15 +593,17 @@ router.post('/:id/validate-manager-only', async (req, res) => {
           request.travel_required || false,
           request.start_date,
           ['Tickets restaurant', 'Mutuelle', 'Télétravail'],
-          new Date().toISOString().split('T')[0],
+          null, // publication_date reste null car non publiée
           deadline.toISOString().split('T')[0],
-          'published',
+          'draft', // ✅ Statut DRAFT
           request.created_by,
           request.created_by_name,
-          validator_name || request.created_by_name,
-          new Date()
+          null, // published_by reste null
+          null  // published_at reste null
         ]
       );
+      
+      console.log(`✅ Offre d'emploi créée en BROUILLON pour la demande ${id}`);
     }
 
     await client.query('COMMIT');
@@ -526,7 +616,7 @@ router.post('/:id/validate-manager-only', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Demande validée automatiquement et offre créée avec succès',
+      message: 'Demande validée automatiquement et offre créée en brouillon',
       request: updatedRequest.rows[0]
     });
 
@@ -608,7 +698,6 @@ router.delete('/:id', async (req, res) => {
 // GET /api/recruitment/requests/by-status/pending - Compter les demandes en attente
 router.get('/requests/by-status/pending', async (req, res) => {
   try {
-    // Vos status dans la base sont : 'En attente de validation', 'Open'
     const query = `
       SELECT COUNT(*) FROM recruitment_requests 
       WHERE status IN ('En attente')
@@ -625,7 +714,6 @@ router.get('/requests/by-status/pending', async (req, res) => {
 // GET /api/recruitment/requests/by-status/in-progress - Compter les demandes en cours
 router.get('/requests/by-status/in-progress', async (req, res) => {
   try {
-    // Vos status dans la base pour "en cours"
     const query = `
       SELECT COUNT(*) FROM recruitment_requests 
       WHERE status IN ('En cours')
@@ -642,7 +730,6 @@ router.get('/requests/by-status/in-progress', async (req, res) => {
 // GET /api/recruitment/requests/by-status/validated - Compter les demandes validées
 router.get('/requests/by-status/validated', async (req, res) => {
   try {
-    // Vos status dans la base pour "validé"
     const query = `
       SELECT COUNT(*) FROM recruitment_requests 
       WHERE status IN ('Validées') 
@@ -689,7 +776,6 @@ router.get('/requests/count', async (req, res) => {
     let paramCount = 1;
 
     if (status) {
-      // Gestion spéciale pour certains status
       if (status === 'En attente') {
         query += ` AND (status = $${paramCount} OR status = $${paramCount+1})`;
         values.push('En attente de validation', 'Open');
@@ -729,25 +815,21 @@ router.get('/requests/stats', async (req, res) => {
   try {
     const { role } = req.query;
     
-    // Requête pour compter les demandes en attente
     const pendingQuery = `
       SELECT COUNT(*) FROM recruitment_requests 
       WHERE status IN ('En attente')
     `;
     
-    // Requête pour compter les demandes en cours
     const inProgressQuery = `
       SELECT COUNT(*) FROM recruitment_requests 
       WHERE status IN ('En cours')
     `;
     
-    // Requête pour compter les demandes validées
     const validatedQuery = `
       SELECT COUNT(*) FROM recruitment_requests 
-      WHERE status IN ( 'Validées') OR current_validation_level = 'Validé'
+      WHERE status IN ('Validées') OR current_validation_level = 'Validé'
     `;
     
-    // Requête pour compter les validations en attente pour un rôle spécifique
     let pendingValidationsQuery = 'SELECT COUNT(*) FROM recruitment_requests WHERE 1=1';
     const pendingValues = [];
     
@@ -756,7 +838,6 @@ router.get('/requests/stats', async (req, res) => {
       pendingValues.push(role);
     }
 
-    // Exécuter toutes les requêtes en parallèle
     const [
       pendingResult,
       inProgressResult,
@@ -791,7 +872,6 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     
-    // Construire la requête dynamiquement
     const setClauses = [];
     const values = [];
     let paramIndex = 1;

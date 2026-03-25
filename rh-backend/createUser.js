@@ -2,7 +2,7 @@ import { pool } from './config/db.js';
 import bcrypt from 'bcrypt';
 
 // Rôles valides
-const validRoles = ['Manager', 'DRH', 'DAF', 'DGA', 'DG'];
+const validRoles = ['Manager', 'Directeur', 'DRH', 'DAF', 'DGA', 'DG'];
 
 async function createUser(user) {
   try {
@@ -65,3 +65,16 @@ createUser({
   avatar: "https://example.com/avatar.png",
   status: "active"
 });
+/*
+createUser({
+  full_name: "Aya",
+  email: "aya1@kilani.com",
+  password: "motdepasse123",
+  role: "Directeur",
+  department: "IT",
+  position: "Directeur IT",
+  phone: "22123456",
+  company: "ENIC",
+  avatar: "https://example.com/avatar.png",
+  status: "active"
+});*/

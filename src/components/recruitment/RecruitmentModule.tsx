@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Plus, Search, Filter, Zap, Users, Briefcase, Target, 
-  TrendingUp, CheckCircle, FileText, Calendar 
+  TrendingUp, CheckCircle,Calendar 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import RecruitmentRequestList from './RecruitmentRequestList';
@@ -34,67 +34,62 @@ export default function RecruitmentModule() {
     fetchStats();
   }, []);
 
-const fetchStats = async () => {
-  setLoading(true);
-  try {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    if (!token) {
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      console.log('🔍 Récupération des stats...');
+
+      const BASE_URL = 'http://localhost:5000/api/recruitmentRequests';
+      
+      const pendingRes = await fetch(`${BASE_URL}/requests/by-status/pending`, { headers });
+      const pendingData = await pendingRes.json();
+      console.log('📊 Demandes en attente:', pendingData);
+
+      const inProgressRes = await fetch(`${BASE_URL}/requests/by-status/in-progress`, { headers });
+      const inProgressData = await inProgressRes.json();
+      console.log('📊 Demandes en cours:', inProgressData);
+
+      const validatedRes = await fetch(`${BASE_URL}/requests/by-status/validated`, { headers });
+      const validatedData = await validatedRes.json();
+      console.log('📊 Demandes validées:', validatedData);
+
+      let pendingValidations = 0;
+      if (user?.role) {
+        const pendingForUserRes = await fetch(
+          `${BASE_URL}/requests/pending-for-user?role=${user.role}`, 
+          { headers }
+        );
+        const pendingForUserData = await pendingForUserRes.json();
+        console.log(`📊 Validations en attente pour ${user.role}:`, pendingForUserData);
+        pendingValidations = pendingForUserData.count || 0;
+      }
+
+      const newStats = {
+        openRequests: (pendingData.count || 0) + (inProgressData.count || 0),
+        pendingValidations: pendingValidations,
+        activeOffers: validatedData.count || 0,
+        totalCandidates: 0,
+        interviews: 0,
+      };
+
+      console.log('✅ Stats mises à jour:', newStats);
+      setStats(newStats);
+
+    } catch (error) {
+      console.error('❌ Error fetching stats:', error);
+      toast.error('Erreur lors du chargement des statistiques');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const headers = { 'Authorization': `Bearer ${token}` };
-
-    console.log('🔍 Récupération des stats...');
-
-    // ✅ URLs CORRECTES selon votre montage
-    const BASE_URL = 'http://localhost:5000/api/recruitmentRequests';
-    
-    // 1. Compter les demandes en attente
-    const pendingRes = await fetch(`${BASE_URL}/requests/by-status/pending`, { headers });
-    const pendingData = await pendingRes.json();
-    console.log('📊 Demandes en attente:', pendingData);
-
-    // 2. Compter les demandes en cours
-    const inProgressRes = await fetch(`${BASE_URL}/requests/by-status/in-progress`, { headers });
-    const inProgressData = await inProgressRes.json();
-    console.log('📊 Demandes en cours:', inProgressData);
-
-    // 3. Compter les demandes validées
-    const validatedRes = await fetch(`${BASE_URL}/requests/by-status/validated`, { headers });
-    const validatedData = await validatedRes.json();
-    console.log('📊 Demandes validées:', validatedData);
-
-    // 4. Compter les validations en attente pour l'utilisateur connecté
-    let pendingValidations = 0;
-    if (user?.role) {
-      const pendingForUserRes = await fetch(
-        `${BASE_URL}/requests/pending-for-user?role=${user.role}`, 
-        { headers }
-      );
-      const pendingForUserData = await pendingForUserRes.json();
-      console.log(`📊 Validations en attente pour ${user.role}:`, pendingForUserData);
-      pendingValidations = pendingForUserData.count || 0;
-    }
-
-    const newStats = {
-      openRequests: (pendingData.count || 0) + (inProgressData.count || 0),
-      pendingValidations: pendingValidations,
-      activeOffers: validatedData.count || 0,
-      totalCandidates: 0,
-      interviews: 0,
-    };
-
-    console.log('✅ Stats mises à jour:', newStats);
-    setStats(newStats);
-
-  } catch (error) {
-    console.error('❌ Error fetching stats:', error);
-    toast.error('Erreur lors du chargement des statistiques');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const views = [
     { 
@@ -139,8 +134,31 @@ const fetchStats = async () => {
     },
   ];
 
-  const canCreateRequest = ['manager', 'directeur', 'rh'].includes(user?.role?.toLowerCase() || '');
-  const canValidateRequests = ['manager', 'directeur', 'rh', 'daf', 'dga'].includes(user?.role?.toLowerCase() || '');
+  const canCreateRequest = ['manager', 'DRH', 'rh'].includes(user?.role?.toLowerCase() || '');
+  const canValidateRequests = ['directeur','drh', 'rh', 'daf', 'dga'].includes(user?.role?.toLowerCase() || '');
+
+  // 🔥 FILTRER LES VUES SELON LES PERMISSIONS
+  const visibleViews = views.filter(view => {
+    // Cacher l'onglet validation si non autorisé
+    if (view.id === 'validate') {
+      return canValidateRequests;
+    }
+
+   if (view.id === 'requests' && user?.role?.toLowerCase() === 'directeur') {
+    return false;
+   }
+    
+    // Tous les autres onglets restent visibles
+    return true;
+  });
+
+  // 🔥 REDIRIGER SI L'ONGLET ACTUEL N'EST PLUS VISIBLE
+  useEffect(() => {
+    const viewExists = visibleViews.some(view => view.id === activeView);
+    if (!viewExists && visibleViews.length > 0) {
+      setActiveView(visibleViews[0].id);
+    }
+  }, [visibleViews, activeView]);
 
   const getSearchPlaceholder = () => {
     switch (activeView) {
@@ -195,6 +213,7 @@ const fetchStats = async () => {
                 </div>
               </div>
               
+              {/* Statistique "À valider" visible seulement pour les autorisés */}
               {canValidateRequests && (
                 <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
                   <div className="p-2 bg-blue-100 rounded-lg">
@@ -285,9 +304,9 @@ const fetchStats = async () => {
       {/* Barre de navigation et recherche */}
       <div className="p-1 bg-white border shadow-sm rounded-2xl border-slate-200">
         <div className="flex flex-col justify-between gap-4 p-5 lg:flex-row lg:items-center">
-          {/* Navigation par onglets */}
+          {/* 🔥 Navigation avec les vues filtrées */}
           <div className="flex items-center pb-2 space-x-1 overflow-x-auto lg:pb-0">
-            {views.map((view) => {
+            {visibleViews.map((view) => {
               const Icon = view.icon;
               const isActive = activeView === view.id;
               
@@ -379,7 +398,8 @@ const fetchStats = async () => {
             />
           )}
           
-          {activeView === 'validate' && canValidateRequests && (
+          {/* 🔥 Plus besoin de vérifier canValidateRequests ici car l'onglet n'existe pas pour les non autorisés */}
+          {activeView === 'validate' && (
             <ValidationRequestList onUpdate={fetchStats} searchTerm={searchTerm} />
           )}
           
@@ -393,18 +413,6 @@ const fetchStats = async () => {
           
           {activeView === 'interviews' && (
             <InterviewEvaluationList searchTerm={searchTerm} />
-          )}
-          
-          {activeView === 'validate' && !canValidateRequests && (
-            <div className="py-12 text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100">
-                <CheckCircle className="w-8 h-8 text-slate-400" />
-              </div>
-              <h3 className="mb-2 text-lg font-medium text-slate-900">Accès non autorisé</h3>
-              <p className="text-slate-600">
-                Vous n'avez pas les permissions nécessaires pour valider des demandes
-              </p>
-            </div>
           )}
         </div>
       </div>

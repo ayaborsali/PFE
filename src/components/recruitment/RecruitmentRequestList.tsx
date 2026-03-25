@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Eye, CheckCircle, Zap, Building, DollarSign, Calendar,
   Filter, Download, ChevronLeft, ChevronRight, Search, XCircle, AlertCircle,
-  Plus, X, FileText, Printer, Mail, ChevronDown
+  FileText, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import RequestValidationModal from './RequestValidationModal';
@@ -16,6 +16,8 @@ interface Request {
   contract_type: string;
   reason: string;
   budget: number;
+  salary_min: number | null;  // Ajouté
+  salary_max: number | null;  // Ajouté
   required_skills: string[];
   description: string;
   urgent: boolean;
@@ -50,6 +52,23 @@ interface Props {
   searchTerm: string;
   onNewRequest?: () => void;
 }
+
+// Fonction utilitaire pour formater le salaire
+const formatSalary = (salaryMin: number | null, salaryMax: number | null): string => {
+  if (salaryMin && salaryMax) {
+    if (salaryMin === salaryMax) {
+      return `${salaryMin.toLocaleString()} DT/mois`;
+    }
+    return `${salaryMin.toLocaleString()} - ${salaryMax.toLocaleString()} DT/mois`;
+  }
+  if (salaryMin) {
+    return `≥ ${salaryMin.toLocaleString()} DT/mois`;
+  }
+  if (salaryMax) {
+    return `≤ ${salaryMax.toLocaleString()} DT/mois`;
+  }
+  return 'Non spécifié';
+};
 
 export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequest }: Props) {
   const { user } = useAuth();
@@ -183,12 +202,18 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
       filtered = filtered.filter(r => new Date(r.created_at) <= new Date(filters.dateTo));
     }
 
-    // Filtre par budget
+    // Filtre par budget (maintenant basé sur salary_min et salary_max)
     if (filters.minBudget !== null) {
-      filtered = filtered.filter(r => (r.budget || 0) >= filters.minBudget!);
+      filtered = filtered.filter(r => {
+        const avgSalary = r.salary_min && r.salary_max ? (r.salary_min + r.salary_max) / 2 : r.budget || 0;
+        return avgSalary >= filters.minBudget!;
+      });
     }
     if (filters.maxBudget !== null) {
-      filtered = filtered.filter(r => (r.budget || 0) <= filters.maxBudget!);
+      filtered = filtered.filter(r => {
+        const avgSalary = r.salary_min && r.salary_max ? (r.salary_min + r.salary_max) / 2 : r.budget || 0;
+        return avgSalary <= filters.maxBudget!;
+      });
     }
 
     setFilteredRequests(filtered);
@@ -222,7 +247,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         'Type de contrat',
         'Niveau',
         'Expérience',
-        'Budget (DT)',
+        'Salaire mensuel (DT)',
         'Statut',
         'Niveau validation',
         'Urgent',
@@ -239,7 +264,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         request.contract_type,
         request.level,
         request.experience,
-        request.budget || '',
+        formatSalary(request.salary_min, request.salary_max),
         request.status,
         request.current_validation_level,
         request.urgent ? 'Oui' : 'Non',
@@ -273,8 +298,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
   };
 
   const exportToExcel = () => {
-    // Même logique que CSV mais avec extension .xlsx
-    exportToCSV(); // Pour l'instant, on utilise CSV
+    exportToCSV();
   };
 
   const handleDelete = async (id: string) => {
@@ -334,11 +358,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
     }
   };
 
-  const canCreateRequest = () => {
-    const userRole = user?.role?.toLowerCase();
-    return ['manager', 'directeur', 'rh'].includes(userRole || '');
-  };
-
   const statuses = [
     { value: 'all', label: 'Toutes' },
     { value: 'En attente', label: 'En attente' },
@@ -377,14 +396,19 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
       ),
     },
     {
-      accessorKey: 'budget',
-      header: 'Budget',
-      cell: ({ row }: { row: any }) => (
-        <div className="flex items-center space-x-2">
-          <DollarSign className="w-4 h-4 text-slate-400" />
-          <span>{row.original.budget?.toLocaleString()} DT</span>
-        </div>
-      ),
+      accessorKey: 'salary',
+      header: 'Salaire mensuel',
+      cell: ({ row }: { row: any }) => {
+        const request = row.original;
+        return (
+          <div className="flex items-center space-x-2">
+            <DollarSign className="w-4 h-4 text-emerald-600" />
+            <span className="font-medium text-emerald-700">
+              {formatSalary(request.salary_min, request.salary_max)}
+            </span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'status',
@@ -488,8 +512,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
         </div>
 
         <div className="flex items-center space-x-3">
-          
-          
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             className={`flex items-center px-4 py-2 space-x-2 transition-colors rounded-lg ${
@@ -526,7 +548,6 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
                 <FileText className="w-4 h-4 text-emerald-600" />
                 <span>Exporter en Excel</span>
               </button>
-              
             </div>
           </div>
         </div>
@@ -662,10 +683,10 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
               />
             </div>
 
-            {/* Budget min */}
+            {/* Salaire minimum */}
             <div>
               <label className="block mb-2 text-sm font-medium text-slate-700">
-                Budget minimum (DT)
+                Salaire minimum (DT/mois)
               </label>
               <input
                 type="number"
@@ -679,10 +700,10 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
               />
             </div>
 
-            {/* Budget max */}
+            {/* Salaire maximum */}
             <div>
               <label className="block mb-2 text-sm font-medium text-slate-700">
-                Budget maximum (DT)
+                Salaire maximum (DT/mois)
               </label>
               <input
                 type="number"
@@ -692,7 +713,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
                   maxBudget: e.target.value ? parseInt(e.target.value) : null
                 })}
                 className="w-full px-3 py-2 border rounded-lg border-slate-300"
-                placeholder="100000"
+                placeholder="10000"
               />
             </div>
           </div>
@@ -831,8 +852,10 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
                     <p className="font-semibold text-slate-900">{showDetailsModal.location}</p>
                   </div>
                   <div>
-                    <label className="text-sm text-slate-600">Budget</label>
-                    <p className="font-semibold text-slate-900">{showDetailsModal.budget?.toLocaleString()} DT</p>
+                    <label className="text-sm text-slate-600">Salaire</label>
+                    <p className="font-semibold text-emerald-700">
+                      {formatSalary(showDetailsModal.salary_min, showDetailsModal.salary_max)}
+                    </p>
                   </div>
                   <div>
                     <label className="text-sm text-slate-600">Type de contrat</label>
@@ -851,6 +874,16 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
                     <p className="font-semibold text-slate-900">{showDetailsModal.remote_work ? 'Oui' : 'Non'}</p>
                   </div>
                 </div>
+
+                {showDetailsModal.salary_min && showDetailsModal.salary_max && (
+                  <div className="p-4 border rounded-lg bg-emerald-50 border-emerald-200">
+                    <p className="text-sm text-emerald-800">
+                      <span className="font-semibold">Salaire annuel brut estimé :</span>{' '}
+                      {((showDetailsModal.salary_min + showDetailsModal.salary_max) / 2 * 12).toLocaleString()} DT/an
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-sm text-slate-600">Description</label>
                   <p className="mt-1 whitespace-pre-line text-slate-700">{showDetailsModal.description}</p>

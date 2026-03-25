@@ -1,8 +1,12 @@
+
+//Ce composant affiche une fenêtre popup contenant toutes les informations d’une demande de recrutement.
+
 import { useState } from 'react';
 import { 
   X, CheckCircle, XCircle, Edit2, MessageSquare, 
   Clock, User, Building, FileText, Target,
-  AlertCircle, Send, History, Shield, Award, DollarSign, Users
+  AlertCircle, Send, History, Shield, Award, DollarSign, Users,
+  UserCircle2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -39,7 +43,7 @@ interface Props {
 }
 
 export default function RequestValidationModal({ request, onClose, onSuccess }: Props) {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState<'validate' | 'reject' | null>(null);
   const [comment, setComment] = useState('');
@@ -84,18 +88,18 @@ export default function RequestValidationModal({ request, onClose, onSuccess }: 
             {
               action: action === 'validate' ? 'VALIDATED' : 'REJECTED',
               level: request.current_validation_level,
-              user: profile?.full_name,
-              user_role: profile?.role,
+              user: user?.full_name,
+              user_role: UserCircle2?.role,
               comment: comment,
               timestamp: new Date().toISOString(),
             }
           ],
           ...(action === 'validate' && {
-            last_validated_by: profile?.full_name,
+            last_validated_by: user?.full_name,
             last_validated_at: new Date().toISOString(),
           }),
           ...(action === 'reject' && {
-            rejected_by: profile?.full_name,
+            rejected_by: user?.full_name,
             rejected_at: new Date().toISOString(),
             rejection_reason: comment,
           }),
@@ -146,8 +150,8 @@ export default function RequestValidationModal({ request, onClose, onSuccess }: 
             {
               action: 'MODIFIED',
               level: request.current_validation_level,
-              user: profile?.full_name,
-              user_role: profile?.role,
+              user: user?.full_name,
+              user_role: user?.role,
               comment: 'Modifications apportées par le validateur',
               timestamp: new Date().toISOString(),
             }
@@ -168,7 +172,7 @@ export default function RequestValidationModal({ request, onClose, onSuccess }: 
     }
   };
 
-  const canEdit = ['rh', 'daf', 'directeur'].includes(profile?.role?.toLowerCase() || '');
+  const canEdit = ['rh', 'daf', 'directeur'].includes(user?.role?.toLowerCase() || '');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">

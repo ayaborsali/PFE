@@ -8,13 +8,34 @@ const router = express.Router();
 router.post('/new-request', auth, async (req, res) => {
   try {
     const {
-      title, department, location, contract_type, reason,
-      reason_details, budget, required_skills, description,
+      title, 
+      department, 
+      location, 
+      contract_type, 
+      reason,
+      reason_details, 
+      salary_min,
+      salary_max,
+      required_skills, 
+      description,
       urgent,
-      start_date, replacement_name, replacement_reason,
-      level, experience, remote_work, travel_required, priority,
-      validation_flow
+      start_date, 
+      replacement_name, 
+      replacement_reason,
+      level, 
+      experience, 
+      remote_work, 
+      travel_required, 
+      priority,
+      validation_flow,
+      status: receivedStatus,
+      current_validation_level: receivedCurrentLevel,
+      created_by,
+      created_by_name,
+      created_by_role
     } = req.body;
+
+    console.log('💰 Salaires reçus:', { salary_min, salary_max, typeMin: typeof salary_min, typeMax: typeof salary_max });
 
     // Validation des champs requis
     if (!title || !department || !location) {
@@ -30,14 +51,13 @@ router.post('/new-request', auth, async (req, res) => {
           contract_type === 'Alternance' || 
           contract_type === 'Intérim' || 
           contract_type === 'CDD Court (<3 mois)' || 
-          contract_type === 'Saisonnier' ||
-          level === 'Stagiaire') {
+          contract_type === 'Saisonnier') {
         finalValidationFlow = ['Manager'];
-      } else if (level === 'Junior' || level === 'Confirmé') {
+      } else if (level === 'Baccalauréat' || level === 'Bac+2 (DUT, BTS)') {
         finalValidationFlow = ['Manager', 'Directeur', 'DRH'];
-      } else if (level === 'Senior' || level === 'Expert') {
+      } else if (level === 'Master (Bac+5)' || level === 'Diplôme d\'Ingénieur') {
         finalValidationFlow = ['Manager', 'Directeur', 'DRH', 'DAF'];
-      } else if (level === 'Lead' || title.includes('Directeur') || title.includes('Responsable')) {
+      } else if (title && (title.includes('Directeur') || title.includes('Responsable'))) {
         finalValidationFlow = ['DRH', 'DAF', 'DGA/DG'];
       } else {
         finalValidationFlow = ['Manager', 'Directeur', 'DRH'];
@@ -45,34 +65,61 @@ router.post('/new-request', auth, async (req, res) => {
     }
 
     // Déterminer le statut et le niveau initial
-    let status = 'En attente';
-    let current_validation_level = finalValidationFlow[0];
+    let finalStatus = receivedStatus || 'En attente';
+    let finalCurrentLevel = receivedCurrentLevel || finalValidationFlow[0];
 
     // Si circuit simplifié (Manager uniquement), on valide directement
     if (finalValidationFlow.length === 1 && finalValidationFlow[0] === 'Manager') {
-      status = 'Validées';
-      current_validation_level = 'Validé';
+      finalStatus = 'Validées';
+      finalCurrentLevel = 'Validé';
+    }
+
+    // Formater les salaires
+    const salaryMinNum = (salary_min !== undefined && salary_min !== null && salary_min !== '') 
+      ? parseFloat(salary_min) 
+      : null;
+    const salaryMaxNum = (salary_max !== undefined && salary_max !== null && salary_max !== '') 
+      ? parseFloat(salary_max) 
+      : null;
+
+    console.log('💰 Salaires après conversion:', { salaryMinNum, salaryMaxNum });
+
+    // Validation des salaires
+    if (salaryMinNum !== null && salaryMaxNum !== null && salaryMinNum >= salaryMaxNum) {
+      return res.status(400).json({ 
+        message: 'Le salaire minimum doit être inférieur au salaire maximum' 
+      });
     }
 
     // Formatage du tableau pour PostgreSQL
     const formatPGArray = (arr) => {
       if (!arr || arr.length === 0) return '{}';
-      return `{${arr.map(s => `"${s.replace(/"/g, '\\"')}"`).join(',')}}`;
+      const escaped = arr.map(s => {
+        const str = String(s).replace(/"/g, '\\"');
+        return `"${str}"`;
+      });
+      return `{${escaped.join(',')}}`;
     };
+
+    // S'assurer que required_skills est un tableau
+    const skillsArray = Array.isArray(required_skills) 
+      ? required_skills 
+      : (required_skills ? required_skills.split(',').map(s => s.trim()).filter(Boolean) : []);
 
     const query = `
       INSERT INTO recruitment_requests
       (
         title, department, location, contract_type, reason, 
-        reason_details, budget, required_skills, description,
+        reason_details, salary_min, salary_max, required_skills, description,
         urgent, created_by, created_by_name, created_by_role, 
         start_date, replacement_name, replacement_reason,
         level, experience, remote_work, travel_required, priority,
-        validation_flow, current_validation_level, status
+        validation_flow, current_validation_level, status,
+        created_at
       )
       VALUES
-      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 
-       $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 
+       $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, NOW())
       RETURNING *;
     `;
 
@@ -83,47 +130,180 @@ router.post('/new-request', auth, async (req, res) => {
       contract_type,
       reason,
       JSON.stringify(reason_details || {}),
-      budget ? parseInt(budget, 10) : null,
-      formatPGArray(required_skills || []),
-      description,
-      urgent || false,
-      req.user.id,
-      req.user.name || req.user.email,
-      req.user.role,
-      start_date,
+      salaryMinNum,
+      salaryMaxNum,
+      formatPGArray(skillsArray),
+      description || '',
+      urgent === true || urgent === 'true' || false,
+      created_by || req.user?.id,
+      created_by_name || req.user?.name || req.user?.email || 'Utilisateur',
+      created_by_role || req.user?.role || 'Manager',
+      start_date || null,
       replacement_name || null,
       replacement_reason || null,
-      level || 'Junior',
+      level || 'Bac+2 (DUT, BTS)',
       experience || '1-3 ans',
-      remote_work || false,
-      travel_required || false,
+      remote_work === true || remote_work === 'true' || false,
+      travel_required === true || travel_required === 'true' || false,
       priority || 'medium',
       formatPGArray(finalValidationFlow),
-      current_validation_level,
-      status
+      finalCurrentLevel,
+      finalStatus
     ];
 
     console.log('📝 Création demande:', {
       title,
-      status,
-      current_level: current_validation_level,
+      salary_min: salaryMinNum,
+      salary_max: salaryMaxNum,
+      status: finalStatus,
+      current_level: finalCurrentLevel,
       validation_flow: finalValidationFlow
     });
 
     const { rows } = await pool.query(query, values);
+    const newRequest = rows[0];
+
+    console.log('✅ Demande créée ID:', newRequest.id);
+    console.log('💰 Salaires enregistrés dans DB:', {
+      salary_min: newRequest.salary_min,
+      salary_max: newRequest.salary_max
+    });
+
+    // Si la demande est automatiquement validée, créer l'offre d'emploi (si elle n'existe pas déjà)
+    if (finalStatus === 'Validées') {
+      // Vérifier si une offre existe déjà pour cette demande
+      const existingOffer = await pool.query(
+        'SELECT id FROM job_offers WHERE request_id = $1',
+        [newRequest.id]
+      );
+      
+      if (existingOffer.rows.length === 0) {
+        const deadline = new Date();
+        deadline.setDate(deadline.getDate() + 30);
+        
+        // Calculer le budget annuel
+        let annualBudget = null;
+        if (salaryMinNum !== null && salaryMaxNum !== null) {
+          const avgMonthly = (salaryMinNum + salaryMaxNum) / 2;
+          annualBudget = avgMonthly * 12;
+        }
+        
+        // Vérifier si la table job_offers a les colonnes salary_min et salary_max
+        let hasSalaryColumns = false;
+        try {
+          const checkColumns = await pool.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'job_offers' 
+            AND column_name IN ('salary_min', 'salary_max')
+          `);
+          hasSalaryColumns = checkColumns.rows.length === 2;
+        } catch (err) {
+          console.log('⚠️ Impossible de vérifier les colonnes job_offers, utilisation du fallback');
+        }
+        
+        let jobOfferQuery;
+        let jobOfferValues;
+        
+        if (hasSalaryColumns) {
+          jobOfferQuery = `
+            INSERT INTO job_offers (
+              request_id, title, department, location, contract_type, description,
+              required_skills, level, experience, budget, salary_min, salary_max,
+              remote_work, travel_required, start_date, benefits,
+              publication_date, application_deadline, status,
+              created_by, created_by_name, published_by, published_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+          `;
+          jobOfferValues = [
+            newRequest.id,
+            title,
+            department,
+            location,
+            contract_type,
+            description || '',
+            skillsArray,
+            level || 'Bac+2 (DUT, BTS)',
+            experience || '1-3 ans',
+            annualBudget,
+            salaryMinNum,
+            salaryMaxNum,
+            remote_work === true || remote_work === 'true' || false,
+            travel_required === true || travel_required === 'true' || false,
+            start_date,
+            ['Tickets restaurant', 'Mutuelle', 'Télétravail'],
+            null,
+            deadline.toISOString().split('T')[0],
+            'draft',
+            created_by || req.user?.id,
+            created_by_name || req.user?.name || req.user?.email,
+            null,
+            null
+          ];
+        } else {
+          jobOfferQuery = `
+            INSERT INTO job_offers (
+              request_id, title, department, location, contract_type, description,
+              required_skills, level, experience, budget,
+              remote_work, travel_required, start_date, benefits,
+              publication_date, application_deadline, status,
+              created_by, created_by_name, published_by, published_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+          `;
+          jobOfferValues = [
+            newRequest.id,
+            title,
+            department,
+            location,
+            contract_type,
+            description || '',
+            skillsArray,
+            level || 'Bac+2 (DUT, BTS)',
+            experience || '1-3 ans',
+            annualBudget,
+            remote_work === true || remote_work === 'true' || false,
+            travel_required === true || travel_required === 'true' || false,
+            start_date,
+            ['Tickets restaurant', 'Mutuelle', 'Télétravail'],
+            null,
+            deadline.toISOString().split('T')[0],
+            'draft',
+            created_by || req.user?.id,
+            created_by_name || req.user?.name || req.user?.email,
+            null,
+            null
+          ];
+        }
+        
+        try {
+          await pool.query(jobOfferQuery, jobOfferValues);
+          console.log(`✅ Offre d'emploi créée en BROUILLON pour la demande ${newRequest.id}`);
+        } catch (offerError) {
+          console.error('⚠️ Erreur création offre:', offerError.message);
+          // Ne pas bloquer la création de la demande si l'offre échoue
+        }
+      } else {
+        console.log(`ℹ️ Offre déjà existante pour la demande ${newRequest.id}, création ignorée`);
+      }
+    }
 
     res.status(201).json({ 
-      data: rows[0],
-      message: 'Demande créée avec succès'
+      data: newRequest,
+      message: finalStatus === 'Validées' 
+        ? 'Demande créée et validée automatiquement, offre en brouillon'
+        : 'Demande créée avec succès'
     });
 
   } catch (error) {
-    console.error('❌ Erreur création:', error);
+    console.error('❌ Erreur création demande:', error);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ 
-      message: 'Erreur lors de la création de la demande'
+      message: 'Erreur lors de la création de la demande',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
-});
+}); 
 
 // Route pour récupérer les demandes avec pagination et filtres
 router.get('/', auth, async (req, res) => {

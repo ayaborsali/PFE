@@ -6,6 +6,7 @@ import {
   Share2, Printer, ExternalLink, CheckCircle,
   XCircle, AlertCircle, Sparkles, Save, X
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 interface JobOffer {
@@ -19,7 +20,7 @@ interface JobOffer {
   contract_type: string;
   publication_date: string;
   closing_date: string;
-  status: 'Draft' | 'Published' | 'Closed' | 'Archived';
+  status: 'draft' | 'published' | 'closed' | 'archived';
   salary_range?: string;
   experience_level: string;
   remote_work: boolean;
@@ -33,6 +34,7 @@ interface JobOffer {
 
 interface Props {
   onUpdate: () => void;
+  searchTerm?: string;
 }
 
 // Listes prédéfinies pour les sélections
@@ -41,169 +43,80 @@ const EXPERIENCE_LEVELS = ['Junior (0-2 ans)', 'Mid-Level (2-4 ans)', 'Confirmé
 const SITES = ['Paris - Siège Social', 'Lyon', 'Marseille', 'Toulouse', 'Bordeaux', 'Lille', 'Nantes'];
 const DEPARTMENTS = ['Direction IT', 'Marketing', 'Commercial', 'Ressources Humaines', 'Direction Financière', 'Direction Administrative', 'Direction Technique'];
 
-export default function JobOffersList({ onUpdate }: Props) {
+export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
+  const {user, token } = useAuth();
   const [offers, setOffers] = useState<JobOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOffer, setSelectedOffer] = useState<JobOffer | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [filter, setFilter] = useState<'all' | 'draft' | 'published' | 'closed'>('all');
-  const [testMode, setTestMode] = useState(true);
   
   // États pour l'édition
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<JobOffer>>({});
 
-  // Exemple d'offres pour le mode test
-  const exampleOffers: JobOffer[] = [
-    {
-      id: 'offer-001',
-      reference: 'DEV-FS-2024-001',
-      title: 'Développeur Full Stack Senior',
-      description: `Nous recherchons un Développeur Full Stack Senior pour rejoindre notre équipe technique.
-
-Responsabilités :
-• Développer et maintenir des applications web modernes
-• Participer à la conception technique et aux revues de code
-• Collaborer avec les équipes produit et design
-• Mentorat des développeurs juniors
-• Amélioration continue des processus de développement
-
-Stack technique :
-• Frontend : React, TypeScript, Tailwind CSS
-• Backend : Node.js, Express, NestJS
-• Base de données : PostgreSQL, MongoDB
-• Infrastructure : AWS, Docker, Kubernetes
-• Outils : Git, Jira, Figma`,
-      profile_required: `Profil recherché :
-• Bac+5 en informatique ou formation équivalente
-• Minimum 5 ans d'expérience en développement full stack
-• Expertise en React et Node.js
-• Connaissance des architectures microservices
-• Expérience avec les services cloud AWS
-• Bonne maîtrise des méthodologies Agile
-• Excellentes compétences en communication`,
-      department: 'Direction IT',
-      site: 'Paris - Siège Social',
-      contract_type: 'CDI',
-      publication_date: new Date().toISOString(),
-      closing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // +30 jours
-      status: 'Published',
-      salary_range: '65-80K€',
-      experience_level: 'Senior (5-8 ans)',
-      remote_work: true,
-      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: new Date().toISOString(),
-      recruitment_request_id: 'req-001',
-      published_on: ['Internal', 'Tanitjobs', 'LinkedIn'],
-      views_count: 245,
-      applications_count: 18
-    },
-    {
-      id: 'offer-002',
-      reference: 'MARK-2024-002',
-      title: 'Marketing Manager',
-      description: `Responsable de la stratégie marketing digitale et des campagnes publicitaires.`,
-      profile_required: `Expérience en marketing B2B, maîtrise des outils analytics.`,
-      department: 'Marketing',
-      site: 'Lyon',
-      contract_type: 'CDI',
-      publication_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-      closing_date: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'Published',
-      salary_range: '45-55K€',
-      experience_level: 'Mid-Level (3-5 ans)',
-      remote_work: false,
-      created_at: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      recruitment_request_id: 'req-002',
-      published_on: ['Internal', 'Tanitjobs'],
-      views_count: 189,
-      applications_count: 12
-    },
-    {
-      id: 'offer-003',
-      reference: 'RH-2024-003',
-      title: 'Assistant RH',
-      description: `Support aux équipes RH pour le recrutement et la gestion administrative.`,
-      profile_required: `Formation RH, connaissances en droit du travail, excellente organisation.`,
-      department: 'Ressources Humaines',
-      site: 'Paris - Siège Social',
-      contract_type: 'CDD',
-      publication_date: '',
-      closing_date: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'Draft',
-      salary_range: '28-32K€',
-      experience_level: 'Junior (0-2 ans)',
-      remote_work: true,
-      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: new Date().toISOString(),
-      recruitment_request_id: 'req-003',
-      published_on: [],
-      views_count: 0,
-      applications_count: 0
-    },
-    {
-      id: 'offer-004',
-      reference: 'SALES-2023-015',
-      title: 'Commercial B2B',
-      description: `Développement du portefeuille clients entreprises.`,
-      profile_required: `Expérience en vente B2B, excellente capacité de négociation.`,
-      department: 'Commercial',
-      site: 'Marseille',
-      contract_type: 'CDI',
-      publication_date: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-      closing_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'Closed',
-      salary_range: '40-50K€ + variable',
-      experience_level: 'Mid-Level (2-4 ans)',
-      remote_work: false,
-      created_at: new Date(Date.now() - 75 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-      recruitment_request_id: 'req-004',
-      published_on: ['Internal', 'Tanitjobs', 'LinkedIn', 'RegionsJob'],
-      views_count: 432,
-      applications_count: 45
-    }
-  ];
-
+  // Charger les offres au montage
   useEffect(() => {
-    if (testMode) {
-      // Mode test - utiliser les exemples
-      setOffers(exampleOffers);
+    fetchOffers();
+  }, []);
+
+  // Récupération des offres depuis la base de données
+const fetchOffers = async () => {
+  setLoading(true);
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (!token) {
       setLoading(false);
-    } else {
-      // Mode production - récupérer de la base de données
-      fetchOffers();
+      return;
     }
-  }, [testMode]);
 
-  const fetchOffers = async () => {
-    setLoading(true);
-    try {
-      let query = supabase
-        .from('job_offers')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const headers = { 
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
 
-      if (filter !== 'all') {
-        query = query.eq('status', filter);
+    // Construire l'URL avec les filtres
+    let url = 'http://localhost:5000/api/job-offers';
+    const params = new URLSearchParams();
+    
+    if (filter !== 'all') {
+      params.append('status', filter);
+    }
+    
+    if (searchTerm) {
+      params.append('search', searchTerm);
+    }
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    console.log('📡 Récupération des offres avec token:', token.substring(0, 10) + '...');
+    
+    const response = await fetch(url, { headers });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        // Rediriger vers login si nécessaire
+        return;
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      setOffers(data || []);
-    } catch (error) {
-      console.error('Error fetching job offers:', error);
-      toast.error('Erreur lors du chargement des offres');
-    } finally {
-      setLoading(false);
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
-  };
+    
+    const data = await response.json();
+    console.log(`✅ ${data.length} offre(s) récupérée(s)`);
+    
+    setOffers(data);
+  } catch (error) {
+    console.error('❌ Error fetching job offers:', error);
+    toast.error('Erreur lors du chargement des offres');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Fonction pour ouvrir le modal d'édition
   const handleOpenEditModal = (offer: JobOffer) => {
@@ -232,47 +145,125 @@ Stack technique :
   };
 
   // Fonction pour sauvegarder les modifications
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingOffer) return;
 
-    const updatedOffers = offers.map(offer => {
-      if (offer.id === editingOffer.id) {
-        return {
-          ...offer,
-          ...editFormData,
-          updated_at: new Date().toISOString()
-        };
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const headers = { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const response = await fetch(`http://localhost:5000/api/job-offers/${editingOffer.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(editFormData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la modification');
       }
-      return offer;
-    });
 
-    setOffers(updatedOffers);
-    setShowEditModal(false);
-    setEditingOffer(null);
-    setShowDetails(false);
+      toast.success('Offre modifiée avec succès', {
+        duration: 3000,
+        position: 'top-right',
+      });
 
-    toast.success('Offre modifiée avec succès', {
-      duration: 3000,
-      position: 'top-right',
-    });
+      setShowEditModal(false);
+      setEditingOffer(null);
+      setShowDetails(false);
+      fetchOffers(); // Recharger les données
+      onUpdate();
+
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast.error('Erreur lors de la modification');
+    }
+  };
+
+  // Fonction pour publier une offre
+  const handlePublishOffer = async (offerId: string, platforms: string[]) => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const headers = { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const response = await fetch(`http://localhost:5000/api/job-offers/${offerId}/publish`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ platforms })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la publication');
+      }
+
+      toast.success(`Offre publiée sur: ${platforms.join(', ')}`, {
+        duration: 3000,
+        position: 'top-right',
+      });
+
+      setShowPublishModal(false);
+      fetchOffers(); // Recharger les données
+      onUpdate();
+
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast.error('Erreur lors de la publication');
+    }
+  };
+
+  // Fonction pour clôturer une offre
+  const handleCloseOffer = async (offerId: string) => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const headers = { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const response = await fetch(`http://localhost:5000/api/job-offers/${offerId}/close`, {
+        method: 'POST',
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la clôture');
+      }
+
+      toast.success('Offre clôturée avec succès', {
+        duration: 3000,
+        position: 'top-right',
+      });
+
+      fetchOffers(); // Recharger les données
+      onUpdate();
+
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast.error('Erreur lors de la clôture');
+    }
   };
 
   const getStatusColor = (status: JobOffer['status']) => {
     switch (status) {
-      case 'Draft': return 'bg-amber-100 text-amber-700';
-      case 'Published': return 'bg-emerald-100 text-emerald-700';
-      case 'Closed': return 'bg-blue-100 text-blue-700';
-      case 'Archived': return 'bg-slate-100 text-slate-700';
+      case 'draft': return 'bg-amber-100 text-amber-700';
+      case 'published': return 'bg-emerald-100 text-emerald-700';
+      case 'closed': return 'bg-blue-100 text-blue-700';
+      case 'archived': return 'bg-slate-100 text-slate-700';
       default: return 'bg-slate-100 text-slate-700';
     }
   };
 
   const getStatusText = (status: JobOffer['status']) => {
     switch (status) {
-      case 'Draft': return 'Brouillon';
-      case 'Published': return 'Publiée';
-      case 'Closed': return 'Clôturée';
-      case 'Archived': return 'Archivée';
+      case 'draft': return 'Brouillon';
+      case 'published': return 'Publiée';
+      case 'closed': return 'Clôturée';
+      case 'archived': return 'Archivée';
       default: return status;
     }
   };
@@ -286,86 +277,6 @@ Stack technique :
       default: return 'bg-slate-100 text-slate-700';
     }
   };
-
-  const handlePublishOffer = (offerId: string, platforms: string[]) => {
-    if (testMode) {
-      toast.success(`Offre publiée sur: ${platforms.join(', ')}`, {
-        duration: 3000,
-        position: 'top-right',
-      });
-      
-      // Mettre à jour l'état local
-      setOffers(offers.map(offer => {
-        if (offer.id === offerId) {
-          return {
-            ...offer,
-            status: 'Published',
-            publication_date: new Date().toISOString(),
-            published_on: platforms,
-            updated_at: new Date().toISOString()
-          };
-        }
-        return offer;
-      }));
-    }
-  };
-
-  const handleCreateFromTemplate = () => {
-    if (testMode) {
-      const newOffer: JobOffer = {
-        id: `offer-${Date.now()}`,
-        reference: `DEV-${new Date().getFullYear()}-${offers.length + 1}`,
-        title: 'Nouvelle Offre - Développeur',
-        description: 'Description à compléter...',
-        profile_required: 'Profil à définir...',
-        department: 'IT',
-        site: 'Paris',
-        contract_type: 'CDI',
-        publication_date: '',
-        closing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'Draft',
-        salary_range: 'À définir',
-        experience_level: 'Senior',
-        remote_work: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        published_on: [],
-        views_count: 0,
-        applications_count: 0
-      };
-
-      setOffers([newOffer, ...offers]);
-      toast.success('Nouvelle offre créée en brouillon', {
-        duration: 3000,
-        position: 'top-right',
-      });
-    }
-  };
-
-  const handleCloseOffer = (offerId: string) => {
-    if (testMode) {
-      setOffers(offers.map(offer => {
-        if (offer.id === offerId) {
-          return {
-            ...offer,
-            status: 'Closed',
-            updated_at: new Date().toISOString()
-          };
-        }
-        return offer;
-      }));
-      
-      toast.success('Offre clôturée avec succès', {
-        duration: 3000,
-        position: 'top-right',
-      });
-    }
-  };
-
-  const filteredOffers = offers.filter(offer => {
-    if (filter === 'all') return true;
-    return offer.status.toLowerCase() === filter.toLowerCase();
-  });
 
   if (loading) {
     return (
@@ -387,11 +298,8 @@ Stack technique :
             </div>
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Offres d'emploi</h2>
-              <p className="text-slate-600">Gérez et publiez vos offres d'emploi</p>
+              <p className="text-slate-600">Offres issues des demandes de recrutement validées</p>
             </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            
           </div>
         </div>
       </div>
@@ -413,7 +321,7 @@ Stack technique :
             <Globe className="w-5 h-5 text-blue-500" />
           </div>
           <div className="text-3xl font-bold text-blue-900">
-            {offers.filter(o => o.status === 'Published').length}
+            {offers.filter(o => o.status === 'published').length}
           </div>
           <p className="text-sm text-blue-700">Actuellement en ligne</p>
         </div>
@@ -494,204 +402,207 @@ Stack technique :
                 type="text"
                 placeholder="Rechercher une offre..."
                 className="py-2 pl-10 pr-4 border rounded-lg border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={searchTerm}
+                onChange={(e) => {
+                  // La recherche est gérée par le parent via searchTerm
+                }}
               />
             </div>
-            <button className="p-2 border rounded-lg border-slate-300 hover:bg-slate-50">
-              <Filter className="w-5 h-5 text-slate-600" />
-            </button>
           </div>
         </div>
       </div>
 
       {/* Liste des offres */}
       <div className="space-y-4">
-        {filteredOffers.map((offer) => (
-          <div
-            key={offer.id}
-            className="p-6 transition-all bg-white border border-slate-200 rounded-xl hover:shadow-lg hover:border-slate-300"
-          >
-            <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
-              {/* Informations principales */}
-              <div className="flex-1 space-y-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center mb-2 space-x-3">
-                      <h3 className="text-lg font-bold text-slate-900">{offer.title}</h3>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(offer.status)}`}>
-                        {getStatusText(offer.status)}
-                      </span>
-                    </div>
-                    <p className="text-slate-600">
-                      <span className="font-medium">{offer.department}</span> • {offer.site}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => {
-                        setSelectedOffer(offer);
-                        setShowDetails(true);
-                      }}
-                      className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                      title="Voir détails"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleOpenEditModal(offer)}
-                      className="p-2 text-blue-400 rounded-lg hover:text-blue-600 hover:bg-blue-50"
-                      title="Modifier"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <div className="flex items-center space-x-2">
-                    <Tag className="w-4 h-4 text-slate-400" />
+        {offers.length > 0 ? (
+          offers.map((offer) => (
+            <div
+              key={offer.id}
+              className="p-6 transition-all bg-white border border-slate-200 rounded-xl hover:shadow-lg hover:border-slate-300"
+            >
+              <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
+                {/* Informations principales */}
+                <div className="flex-1 space-y-4">
+                  <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm text-slate-500">Référence</p>
-                      <p className="font-medium text-slate-900">{offer.reference}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <FileText className="w-4 h-4 text-slate-400" />
-                    <div>
-                      <p className="text-sm text-slate-500">Contrat</p>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getContractColor(offer.contract_type)}`}>
-                        {offer.contract_type}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-slate-400" />
-                    <div>
-                      <p className="text-sm text-slate-500">Publication</p>
-                      <p className="font-medium text-slate-900">
-                        {offer.publication_date 
-                          ? new Date(offer.publication_date).toLocaleDateString('fr-FR')
-                          : 'Non publiée'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    <div>
-                      <p className="text-sm text-slate-500">Clôture</p>
-                      <p className="font-medium text-slate-900">
-                        {new Date(offer.closing_date).toLocaleDateString('fr-FR')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Métriques */}
-                {offer.status === 'Published' && (
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Eye className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm text-slate-600">{offer.views_count} vues</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-4 h-4 text-emerald-500" />
-                      <span className="text-sm text-slate-600">{offer.applications_count} candidatures</span>
-                    </div>
-                    {offer.remote_work && (
-                      <div className="flex items-center space-x-2">
-                        <Globe className="w-4 h-4 text-violet-500" />
-                        <span className="text-sm text-slate-600">Télétravail possible</span>
+                      <div className="flex items-center mb-2 space-x-3">
+                        <h3 className="text-lg font-bold text-slate-900">{offer.title}</h3>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(offer.status)}`}>
+                          {getStatusText(offer.status)}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Plateformes de publication */}
-                {offer.published_on && offer.published_on.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-sm text-slate-500">Publiée sur :</span>
-                    {offer.published_on.map((platform, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700"
+                      <p className="text-slate-600">
+                        <span className="font-medium">{offer.department}</span> • {offer.site}
+                      </p>
+                      {offer.recruitment_request_id && (
+                        <p className="mt-1 text-xs text-slate-400">
+                          Issue de la demande #{offer.recruitment_request_id}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => {
+                          setSelectedOffer(offer);
+                          setShowDetails(true);
+                        }}
+                        className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                        title="Voir détails"
                       >
-                        {platform}
-                      </span>
-                    ))}
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenEditModal(offer)}
+                        className="p-2 text-blue-400 rounded-lg hover:text-blue-600 hover:bg-blue-50"
+                        title="Modifier"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
 
-              {/* Actions */}
-              <div className="space-y-3 lg:w-64">
-                {offer.status === 'Draft' ? (
-                  <button
-                    onClick={() => setShowPublishModal(true)}
-                    className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600 shadow-emerald-500/30"
-                  >
-                    <Share2 className="w-5 h-5" />
-                    <span>Publier l'offre</span>
-                  </button>
-                ) : offer.status === 'Published' ? (
-                  <button
-                    onClick={() => handleCloseOffer(offer.id)}
-                    className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600 shadow-blue-500/30"
-                  >
-                    <CheckCircle className="w-5 h-5" />
-                    <span>Clôturer l'offre</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => toast.success('Offre ré-ouverte')}
-                    className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl hover:from-amber-600 hover:to-orange-600 shadow-amber-500/30"
-                  >
-                    <Zap className="w-5 h-5" />
-                    <span>Ré-ouvrir</span>
-                  </button>
-                )}
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div className="flex items-center space-x-2">
+                      <Tag className="w-4 h-4 text-slate-400" />
+                      <div>
+                        <p className="text-sm text-slate-500">Référence</p>
+                        <p className="font-medium text-slate-900">{offer.reference}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <FileText className="w-4 h-4 text-slate-400" />
+                      <div>
+                        <p className="text-sm text-slate-500">Contrat</p>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${getContractColor(offer.contract_type)}`}>
+                          {offer.contract_type}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                      <div>
+                        <p className="text-sm text-slate-500">Publication</p>
+                        <p className="font-medium text-slate-900">
+                          {offer.publication_date 
+                            ? new Date(offer.publication_date).toLocaleDateString('fr-FR')
+                            : 'Non publiée'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Clock className="w-4 h-4 text-slate-400" />
+                      <div>
+                        <p className="text-sm text-slate-500">Clôture</p>
+                        <p className="font-medium text-slate-900">
+                          {new Date(offer.closing_date).toLocaleDateString('fr-FR')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                 
-                  <button
-                    onClick={() => toast.success('PDF généré avec succès')}
-                    className="flex items-center justify-center px-3 py-2 space-x-2 font-medium transition-all rounded-lg bg-gradient-to-r from-violet-100 to-purple-100 text-violet-700 hover:from-violet-200 hover:to-purple-200"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="text-sm">PDF</span>
-                  </button>
+                  {/* Métriques */}
+                  {offer.status === 'published' && (
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Eye className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm text-slate-600">{offer.views_count} vues</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Users className="w-4 h-4 text-emerald-500" />
+                        <span className="text-sm text-slate-600">{offer.applications_count} candidatures</span>
+                      </div>
+                      {offer.remote_work && (
+                        <div className="flex items-center space-x-2">
+                          <Globe className="w-4 h-4 text-violet-500" />
+                          <span className="text-sm text-slate-600">Télétravail possible</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Plateformes de publication */}
+                  {offer.published_on && offer.published_on.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-sm text-slate-500">Publiée sur :</span>
+                      {offer.published_on.map((platform, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700"
+                        >
+                          {platform}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
-                <button
-                  onClick={() => {
-                    setSelectedOffer(offer);
-                    setShowDetails(true);
-                  }}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 font-medium rounded-lg hover:from-slate-200 hover:to-slate-300 transition-all"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                  <span>Voir les détails</span>
-                </button>
+                {/* Actions */}
+                <div className="space-y-3 lg:w-64">
+                  {offer.status === 'draft' ? (
+                    <button
+                      onClick={() => setShowPublishModal(true)}
+                      className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600 shadow-emerald-500/30"
+                    >
+                      <Share2 className="w-5 h-5" />
+                      <span>Publier l'offre</span>
+                    </button>
+                  ) : offer.status === 'published' ? (
+                    <button
+                      onClick={() => handleCloseOffer(offer.id)}
+                      className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600 shadow-blue-500/30"
+                    >
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Clôturer l'offre</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => toast.success('Fonctionnalité à implémenter')}
+                      className="flex items-center justify-center w-full px-4 py-3 space-x-2 font-medium text-white transition-all shadow-lg bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl hover:from-amber-600 hover:to-orange-600 shadow-amber-500/30"
+                    >
+                      <Zap className="w-5 h-5" />
+                      <span>Ré-ouvrir</span>
+                    </button>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => toast.success('PDF généré avec succès')}
+                      className="flex items-center justify-center px-3 py-2 space-x-2 font-medium transition-all rounded-lg bg-gradient-to-r from-violet-100 to-purple-100 text-violet-700 hover:from-violet-200 hover:to-purple-200"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span className="text-sm">PDF</span>
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedOffer(offer);
+                      setShowDetails(true);
+                    }}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 font-medium rounded-lg hover:from-slate-200 hover:to-slate-300 transition-all"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <span>Voir les détails</span>
+                  </button>
+                </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="py-12 text-center">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-slate-50 to-slate-100">
+              <Briefcase className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="mb-2 text-lg font-medium text-slate-900">Aucune offre trouvée</h3>
+            <p className="text-slate-600">
+              Les offres d'emploi apparaîtront automatiquement lorsque les demandes de recrutement seront validées.
+            </p>
           </div>
-        ))}
+        )}
       </div>
 
-      {filteredOffers.length === 0 && (
-        <div className="py-12 text-center">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-slate-50 to-slate-100">
-            <Briefcase className="w-8 h-8 text-slate-400" />
-          </div>
-          <h3 className="mb-2 text-lg font-medium text-slate-900">Aucune offre trouvée</h3>
-          <p className="text-slate-600">
-            {filter === 'all'
-              ? 'Commencez par créer votre première offre d\'emploi'
-              : `Aucune offre ${filter === 'draft' ? 'brouillon' : filter === 'published' ? 'publiée' : 'clôturée'}`}
-          </p>
-        </div>
-      )}
-
-      {/* Modal de publication */}
-      {showPublishModal && (
+      {/* Modal de publication (à conserver pour les publications manuelles) */}
+      {showPublishModal && selectedOffer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-2xl border shadow-2xl bg-gradient-to-br from-white to-slate-50 rounded-2xl border-white/30">
             <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-white/90 to-white/80 backdrop-blur-lg border-slate-200/50">
@@ -756,17 +667,6 @@ Stack technique :
                   </div>
                 </div>
 
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-slate-700">
-                    Date de clôture
-                  </label>
-                  <input
-                    type="date"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    defaultValue={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                  />
-                </div>
-
                 <div className="flex justify-end pt-4 space-x-3 border-t border-slate-200">
                   <button
                     onClick={() => setShowPublishModal(false)}
@@ -776,7 +676,7 @@ Stack technique :
                   </button>
                   <button
                     onClick={() => {
-                      handlePublishOffer(selectedOffer?.id || 'offer-001', ['Internal', 'Tanitjobs', 'LinkedIn']);
+                      handlePublishOffer(selectedOffer.id, ['Internal', 'Tanitjobs', 'LinkedIn']);
                       setShowPublishModal(false);
                     }}
                     className="px-6 py-3 font-medium text-white transition-all bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600"
@@ -819,6 +719,11 @@ Stack technique :
                     <div>
                       <h4 className="mb-1 text-lg font-bold text-slate-900">{selectedOffer.title}</h4>
                       <p className="text-slate-600">{selectedOffer.department} • {selectedOffer.site}</p>
+                      {selectedOffer.recruitment_request_id && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Issue de la demande de recrutement #{selectedOffer.recruitment_request_id}
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedOffer.status)}`}>
@@ -885,7 +790,7 @@ Stack technique :
                 </div>
 
                 {/* Statistiques */}
-                {selectedOffer.status === 'Published' && (
+                {selectedOffer.status === 'published' && (
                   <div className="p-5 bg-white border border-slate-200 rounded-xl">
                     <h4 className="mb-3 font-semibold text-slate-900">Statistiques</h4>
                     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -928,17 +833,17 @@ Stack technique :
                   </button>
                   <button
                     onClick={() => {
-                      if (selectedOffer.status === 'Draft') {
+                      if (selectedOffer.status === 'draft') {
                         setShowPublishModal(true);
-                      } else if (selectedOffer.status === 'Published') {
+                      } else if (selectedOffer.status === 'published') {
                         handleCloseOffer(selectedOffer.id);
                       }
                       setShowDetails(false);
                     }}
                     className="px-6 py-3 font-medium text-white transition-all bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600"
                   >
-                    {selectedOffer.status === 'Draft' ? 'Publier' : 
-                     selectedOffer.status === 'Published' ? 'Clôturer' : 'Ré-ouvrir'}
+                    {selectedOffer.status === 'draft' ? 'Publier' : 
+                     selectedOffer.status === 'published' ? 'Clôturer' : 'Ré-ouvrir'}
                   </button>
                   <button
                     onClick={() => setShowDetails(false)}
@@ -1153,5 +1058,3 @@ Stack technique :
     </div>
   );
 }
-
-
