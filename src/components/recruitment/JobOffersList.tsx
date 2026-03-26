@@ -58,7 +58,8 @@ const PUBLISH_PLATFORMS = [
 ];
 
 export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
-  const { user, token } = useAuth();
+  // ✅ Supprimé "user" car non utilisé
+  const { token } = useAuth();
   const [offers, setOffers] = useState<JobOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOffer, setSelectedOffer] = useState<JobOffer | null>(null);
@@ -74,9 +75,166 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<JobOffer>>({});
 
+  // États pour LinkedIn
+  const [isLinkedInConnected, setIsLinkedInConnected] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [useAI, setUseAI] = useState(true);
+
+  // ============ FONCTIONS LINKEDIN ============
+
+  // Vérifier si LinkedIn est connecté
+  const checkLinkedInConnection = () => {
+    const linkedinToken = localStorage.getItem('linkedin_token');
+    console.log('🔍 Vérification token dans localStorage:', linkedinToken ? '✅ Présent' : '❌ Absent');
+    setIsLinkedInConnected(!!linkedinToken);
+  };
+
+  // Connecter LinkedIn
+  const connectLinkedIn = () => {
+    const currentToken = token || localStorage.getItem('token');
+    if (currentToken) {
+      localStorage.setItem('pendingAuthToken', currentToken);
+    }
+    window.location.href = 'http://localhost:5000/auth/linkedin';
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const publishToLinkedIn = async (offer: JobOffer): Promise<boolean> => {
+    const linkedinToken = localStorage.getItem('linkedin_token');
+    
+    console.log('🔍 Vérification token LinkedIn...');
+    console.log('Token présent:', !!linkedinToken);
+    
+    if (!linkedinToken) {
+      toast.error('Veuillez d\'abord connecter votre compte LinkedIn', {
+        duration: 5000,
+        action: {
+          label: 'Connecter',
+          onClick: () => connectLinkedIn()
+        }
+      });
+      return false;
+    }
+    
+    try {
+      console.log('📤 Envoi de la requête à /api/publish-linkedin...');
+      console.log('Offre:', offer.title);
+      
+      const response = await fetch('http://localhost:5000/api/publish-linkedin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${linkedinToken}`
+        },
+        body: JSON.stringify({
+          offer: {
+            id: offer.id,
+            title: offer.title,
+            description: offer.description,
+            profile_required: offer.profile_required,
+            location: offer.location,
+            contract_type: offer.contract_type,
+            experience: offer.experience,
+            benefits: offer.benefits,
+            remote_work: offer.remote_work,
+            salary_min: offer.salary_min,
+            salary_max: offer.salary_max
+          }
+        })
+      });
+      
+      console.log('📡 Statut de la réponse:', response.status);
+      
+      const result = await response.json();
+      console.log('📦 Résultat complet:', result);
+      
+      if (response.ok && result.success) {
+        console.log('✅ Publication réussie!');
+        toast.success('✅ Offre publiée sur LinkedIn !');
+        
+        if (result.url) {
+          toast.success(
+            <div className="flex items-center gap-2">
+              <span>📢 Voir le post :</span>
+              <a 
+                href={result.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-500 underline"
+              >
+                LinkedIn
+              </a>
+            </div>,
+            { duration: 8000 }
+          );
+        }
+        return true;
+      } else {
+        console.error('❌ Erreur API:', result.error);
+        toast.error(`Erreur LinkedIn: ${result.error || 'Erreur inconnue'}`);
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur réseau:', error);
+      toast.error('Erreur de connexion au serveur');
+      return false;
+    }
+  };
+
+  // ============ USEEFFECTS ============
+
+  // Vérifier l'URL au chargement initial (pour capturer le token)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    
+    if (tokenFromUrl) {
+      localStorage.setItem('linkedin_token', tokenFromUrl);
+      setIsLinkedInConnected(true);
+      console.log('✅ Token LinkedIn capturé et sauvegardé depuis l\'URL');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Vérifier le retour de l'authentification LinkedIn
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const linkedinConnected = urlParams.get('linkedin_connected');
+    const error = urlParams.get('linkedin_error');
+    
+    console.log('🔍 Vérification des paramètres URL:', {
+      token: token ? 'Présent' : 'Absent',
+      linkedinConnected,
+      error
+    });
+    
+    if (token) {
+      localStorage.setItem('linkedin_token', token);
+      console.log('✅ Token LinkedIn sauvegardé depuis l\'URL');
+      setIsLinkedInConnected(true);
+      toast.success('Compte LinkedIn connecté avec succès !');
+      window.history.replaceState({}, '', window.location.pathname);
+      
+    } else if (linkedinConnected === 'true') {
+      setIsLinkedInConnected(true);
+      toast.success('Compte LinkedIn connecté avec succès !');
+      window.history.replaceState({}, '', window.location.pathname);
+      
+    } else if (error === 'true') {
+      toast.error('Erreur lors de la connexion LinkedIn');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Charger les offres et vérifier la connexion LinkedIn
   useEffect(() => {
     fetchOffers();
+    checkLinkedInConnection();
   }, [filter, searchInput]);
+
+  // ============ FONCTIONS EXISTANTES ============
 
   const fetchOffers = async () => {
     setLoading(true);
@@ -209,45 +367,150 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
   };
 
   const handlePublishOffer = async () => {
-    if (!selectedOfferForPublish) return;
+    if (!selectedOfferForPublish) {
+      toast.error('Aucune offre sélectionnée');
+      return;
+    }
     
     if (selectedPlatforms.length === 0) {
       toast.error('Veuillez sélectionner au moins une plateforme');
       return;
     }
     
+    setIsPublishing(true);
+    
     try {
-      const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
-      const headers = { 
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json'
-      };
-
-      const response = await fetch(`http://localhost:5000/api/job-offers/${selectedOfferForPublish.id}/publish`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ platforms: selectedPlatforms })
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la publication');
+      // 1. Publier sur LinkedIn si sélectionné
+      if (selectedPlatforms.includes('linkedin')) {
+        console.log('📤 Publication sur LinkedIn...');
+        
+        const linkedinToken = localStorage.getItem('linkedin_token');
+        
+        if (!linkedinToken) {
+          toast.error('Veuillez d\'abord connecter votre compte LinkedIn', {
+            duration: 5000,
+            action: {
+              label: 'Connecter',
+              onClick: () => connectLinkedIn()
+            }
+          });
+          
+          if (selectedPlatforms.length === 1) {
+            setIsPublishing(false);
+            return;
+          }
+        } else {
+          const response = await fetch('http://localhost:5000/api/publish-linkedin', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${linkedinToken}`
+            },
+            body: JSON.stringify({
+              offer: {
+                id: selectedOfferForPublish.id,
+                title: selectedOfferForPublish.title,
+                description: selectedOfferForPublish.description,
+                profile_required: selectedOfferForPublish.profile_required,
+                location: selectedOfferForPublish.location,
+                contract_type: selectedOfferForPublish.contract_type,
+                experience: selectedOfferForPublish.experience,
+                benefits: selectedOfferForPublish.benefits,
+                remote_work: selectedOfferForPublish.remote_work,
+                salary_min: selectedOfferForPublish.salary_min,
+                salary_max: selectedOfferForPublish.salary_max
+              }
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            toast.success('✅ Offre publiée sur LinkedIn !');
+            if (result.url) {
+              toast.success(
+                <div className="flex items-center gap-2">
+                  <span>📢 Voir le post :</span>
+                  <a 
+                    href={result.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 underline"
+                  >
+                    LinkedIn
+                  </a>
+                </div>,
+                { duration: 8000 }
+              );
+            }
+          } else {
+            toast.error(`Erreur LinkedIn: ${result.error || 'Erreur inconnue'}`);
+            if (selectedPlatforms.length === 1) {
+              setIsPublishing(false);
+              return;
+            }
+          }
+        }
       }
-
+      
+      // 2. Publier sur les autres plateformes
+      const otherPlatforms = selectedPlatforms.filter(p => p !== 'linkedin');
+      
+      if (otherPlatforms.length > 0) {
+        console.log('📤 Publication sur autres plateformes:', otherPlatforms);
+        
+        const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
+        const linkedinToken = localStorage.getItem('linkedin_token');
+        
+        if (!authToken) {
+          toast.error('Vous n\'êtes pas connecté');
+          setIsPublishing(false);
+          return;
+        }
+        
+        const response = await fetch(`http://localhost:5000/api/job-offers/${selectedOfferForPublish.id}/publish`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+            'X-LinkedIn-Token': linkedinToken || ''
+          },
+          body: JSON.stringify({ 
+            platforms: otherPlatforms,
+            useAI: useAI 
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.text();
+          console.error('Erreur backend:', errorData);
+          throw new Error(`Erreur ${response.status}: ${errorData}`);
+        }
+        
+        const result = await response.json();
+        console.log('Résultat autres plateformes:', result);
+      }
+      
+      // 3. Afficher le message de succès
       const platformNames = selectedPlatforms.map(p => {
         const platform = PUBLISH_PLATFORMS.find(pp => pp.id === p);
         return platform?.name || p;
       }).join(', ');
-
-      toast.success(`Offre publiée avec succès sur: ${platformNames}`);
+      
+      toast.success(`✅ Offre publiée avec succès sur: ${platformNames}`);
+      
+      // 4. Fermer la modal et rafraîchir
       setShowPublishModal(false);
       setSelectedOfferForPublish(null);
       setSelectedPlatforms([]);
       fetchOffers();
       onUpdate();
-
+      
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur lors de la publication');
+      console.error('❌ Erreur détaillée:', error);
+      toast.error(`Erreur: ${error.message || 'Erreur lors de la publication'}`);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -333,7 +596,7 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* En-tête */}
+      {/* En-tête avec bouton LinkedIn */}
       <div className="p-6 bg-white border border-slate-200 rounded-xl">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div className="flex items-center space-x-4">
@@ -344,6 +607,23 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
               <h2 className="text-2xl font-bold text-slate-900">Offres d'emploi</h2>
               <p className="text-slate-600">Gérez vos offres issues des demandes de recrutement validées</p>
             </div>
+          </div>
+          
+          {/* Bouton de connexion LinkedIn */}
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={connectLinkedIn}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                isLinkedInConnected 
+                  ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
+                  : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600'
+              }`}
+            >
+              <Linkedin className="w-4 h-4" />
+              <span>
+                {isLinkedInConnected ? '✅ LinkedIn connecté' : '🔗 Connecter LinkedIn'}
+              </span>
+            </button>
           </div>
         </div>
       </div>
@@ -454,7 +734,7 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
         </div>
       </div>
 
-      {/* Liste des offres */}
+      {/* Liste des offres - le reste du code reste identique */}
       <div className="space-y-4">
         {offers.length > 0 ? (
           offers.map((offer) => (
@@ -462,6 +742,7 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
               key={offer.id}
               className="p-6 transition-all bg-white border border-slate-200 rounded-xl hover:shadow-lg hover:border-slate-300"
             >
+              {/* ... le contenu de chaque offre reste identique ... */}
               <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
                 {/* Informations principales */}
                 <div className="flex-1 space-y-4">
@@ -542,7 +823,6 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
                     </div>
                   </div>
 
-                  {/* Salaire */}
                   {(offer.salary_min || offer.salary_max) && (
                     <div className="flex items-center space-x-2">
                       <DollarSign className="w-4 h-4 text-emerald-500" />
@@ -552,7 +832,6 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
                     </div>
                   )}
 
-                  {/* Métriques */}
                   {offer.status === 'published' && (
                     <div className="flex flex-wrap gap-4">
                       <div className="flex items-center space-x-2">
@@ -692,6 +971,26 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
                   </div>
                 </div>
 
+                <div className="p-4 border border-purple-200 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50">
+                  <label className="flex items-start space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useAI}
+                      onChange={(e) => setUseAI(e.target.checked)}
+                      className="w-4 h-4 mt-1 text-purple-600 rounded focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <Sparkles className="w-5 h-5 text-purple-600" />
+                        <span className="font-medium text-purple-900">Optimiser avec l'IA</span>
+                      </div>
+                      <p className="text-sm text-purple-700">
+                        Reformule automatiquement l'offre pour la rendre plus attrayante sur les réseaux sociaux
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
                 <div className="flex justify-end pt-4 space-x-3 border-t border-slate-200">
                   <button
                     onClick={() => {
@@ -705,10 +1004,20 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
                   </button>
                   <button
                     onClick={handlePublishOffer}
-                    disabled={selectedPlatforms.length === 0}
-                    className="px-6 py-3 font-medium text-white transition-all bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={selectedPlatforms.length === 0 || isPublishing}
+                    className="flex items-center gap-2 px-6 py-3 font-medium text-white transition-all bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:from-emerald-600 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Publier maintenant
+                    {isPublishing ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white rounded-full border-t-transparent animate-spin" />
+                        <span>Publication en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-4 h-4" />
+                        <span>Publier maintenant</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

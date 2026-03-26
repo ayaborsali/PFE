@@ -22,28 +22,37 @@ export default function Login() {
 
   const { signIn, resetPassword } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setError('');
   setLoading(true);
 
   try {
     await signIn(email, password, rememberMe);
-  } catch (err: any) {
-  const message = err.response?.data?.message;
 
-  if (message === 'Utilisateur non trouvé') {
-    setError("Cet email n'est pas enregistré. Vérifiez votre saisie.");
-  } else if (message === 'Mot de passe incorrect') {
-    setError("Le mot de passe est incorrect. Réessayez.");
-  } else {
-    setError("Impossible de se connecter. Veuillez réessayer plus tard.");
-  };
+  } catch (err: any) {
+    let message = "Impossible de se connecter. Veuillez réessayer plus tard.";
+
+    // Si tu utilises Axios
+    if (err.response?.data?.message) {
+      message = err.response.data.message;
+
+      if (message === 'Utilisateur non trouvé') {
+        message = "Cet email n'est pas enregistré. Vérifiez votre saisie.";
+      } else if (message === 'Mot de passe incorrect') {
+        message = "Le mot de passe est incorrect. Réessayez.";
+      }
+
+    // Si tu utilises fetch
+    } else if (err.message) {
+      message = err.message;
+    }
+
+    setError(message);
   } finally {
     setLoading(false);
   }
 };
-
   const handleForgotPassword = async (e: React.FormEvent) => {
   e.preventDefault();
   setError('');

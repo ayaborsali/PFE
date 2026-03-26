@@ -96,27 +96,80 @@ router.post('/forgot-password', async (req, res) => {
 /* =============================
    3️⃣ RESET PASSWORD
 ============================= */
-router.post('/reset-password', async (req, res) => {
-  const { token, newPassword } = req.body;
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email manquant'
+    });
+  }
+
   try {
-    const tokenResult = await pool.query(
-      'SELECT * FROM password_reset_tokens WHERE token=$1 AND used=false AND expires_at > NOW()',
-      [token]
+    // ✅ 1. Vérifier si email existe
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
     );
-    if (!tokenResult.rows.length) return res.status(400).json({ message: 'Token invalide ou expiré' });
 
-    const userId = tokenResult.rows[0].user_id;
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    // ❌ Si email n'existe pas
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Cet email n'existe pas"
+      });
+    }
 
-    // Mise à jour du mot de passe
-    await pool.query('UPDATE users SET password=$1 WHERE id=$2', [hashedPassword, userId]);
-    await pool.query('UPDATE password_reset_tokens SET used=true WHERE token=$1', [token]);
+    const user = result.rows[0];
 
-    res.json({ message: 'Mot de passe réinitialisé avec succès' });
+    // ✅ 2. Générer token
+    const token = crypto.randomBytes(32).toString('hex');
+
+    // ✅ 3. Expiration (1h)
+    const expiresAt = new Date(Date.now() + 3600000);
+
+    // ✅ 4. Sauvegarder token
+    await pool.query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at, used)
+       VALUES ($1, $2, $3, false)`,
+      [user.id, token, expiresAt]
+    );
+
+    // ✅ 5. Envoyer email
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+
+    const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+
+    await transporter.sendMail({
+      from: `"Kilani Groupe" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Réinitialisation mot de passe',
+      html: `
+        <p>Cliquez sur le lien :</p>
+        <a href="${resetLink}">Réinitialiser</a>
+      `
+    });
+
+    return res.json({
+      success: true,
+      message: 'Email envoyé avec succès'
+    });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Erreur serveur' });
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur'
+    });
   }
 });
-
 export default router;
