@@ -40,7 +40,7 @@ app.get('/auth/linkedin', (req, res) => {
   res.redirect(authUrl);
 });
 
-// R oute de callback LinkedIn (version avec sauvegarde automatique)
+// Route de callback LinkedIn - Version avec token dans l'URL
 app.get('/auth/linkedin/callback', async (req, res) => {
   const { code, error } = req.query;
   
@@ -58,7 +58,6 @@ app.get('/auth/linkedin/callback', async (req, res) => {
   }
   
   try {
-    // Échanger le code contre un token d'accès
     const tokenUrl = 'https://www.linkedin.com/oauth/v2/accessToken';
     const params = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -83,126 +82,14 @@ app.get('/auth/linkedin/callback', async (req, res) => {
     if (data.access_token) {
       console.log('✅ Token obtenu avec succès!');
       
-      // Récupérer les infos utilisateur
-      const userInfoResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
-        headers: { 'Authorization': `Bearer ${data.access_token}` }
-      });
-      const userInfo = await userInfoResponse.json();
+      // ⭐ REDIRECTION AVEC LE TOKEN DANS L'URL ⭐
+      const redirectUrl = `http://localhost:5173/dashboard?linkedin_connected=true&token=${encodeURIComponent(data.access_token)}`;
       
-      // Page HTML qui sauvegarde automatiquement le token
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Authentification LinkedIn réussie</title>
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              min-height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            }
-            .card {
-              background: white;
-              border-radius: 20px;
-              padding: 40px;
-              max-width: 500px;
-              text-align: center;
-              box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            }
-            .success-icon {
-              width: 80px;
-              height: 80px;
-              background: #10b981;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin: 0 auto 20px;
-              font-size: 40px;
-              color: white;
-            }
-            h1 { color: #1f2937; margin-bottom: 10px; }
-            p { color: #6b7280; margin-bottom: 20px; }
-            .token-info {
-              background: #f3f4f6;
-              padding: 15px;
-              border-radius: 10px;
-              margin: 20px 0;
-              font-size: 12px;
-              word-break: break-all;
-              color: #374151;
-            }
-            .loader {
-              border: 3px solid #f3f3f3;
-              border-top: 3px solid #0A66C2;
-              border-radius: 50%;
-              width: 40px;
-              height: 40px;
-              animation: spin 1s linear infinite;
-              margin: 20px auto;
-            }
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-            button {
-              background: #0A66C2;
-              color: white;
-              padding: 12px 24px;
-              border: none;
-              border-radius: 24px;
-              font-size: 16px;
-              font-weight: 600;
-              cursor: pointer;
-              margin-top: 20px;
-            }
-            button:hover {
-              background: #004182;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <div class="success-icon">✓</div>
-            <h1>✅ Authentification réussie !</h1>
-            <p>Bonjour <strong>${userInfo.name || userInfo.email}</strong></p>
-            <p>Sauvegarde automatique du token en cours...</p>
-            <div class="loader"></div>
-            <div class="token-info" style="display: none;" id="tokenInfo">
-              Token sauvegardé avec succès !
-            </div>
-            <button id="continueBtn" style="display: none;">🏠 Retour à l'application</button>
-          </div>
-          
-          <script>
-            // Sauvegarder automatiquement le token
-            const token = "${data.access_token}";
-            localStorage.setItem('linkedin_token', token);
-            console.log('✅ Token LinkedIn sauvegardé dans localStorage');
-            
-            // Attendre 2 secondes et rediriger
-            setTimeout(() => {
-              document.querySelector('.loader').style.display = 'none';
-              document.getElementById('tokenInfo').style.display = 'block';
-              document.getElementById('continueBtn').style.display = 'inline-block';
-            }, 2000);
-            
-            document.getElementById('continueBtn').onclick = () => {
-              window.location.href = 'http://localhost:5173/dashboard?linkedin_connected=true';
-            };
-            
-            // Si l'utilisateur ne clique pas, rediriger après 5 secondes
-            setTimeout(() => {
-              window.location.href = 'http://localhost:5173/dashboard?linkedin_connected=true';
-            }, 5000);
-          </script>
-        </body>
-        </html>
-      `);
+      console.log('🔄 Redirection vers:', redirectUrl);
+      console.log('🔑 Token envoyé au frontend');
+      
+      res.redirect(redirectUrl);
+      
     } else {
       console.error('❌ Erreur token:', data);
       res.redirect('http://localhost:5173/dashboard?linkedin_error=token_failed');

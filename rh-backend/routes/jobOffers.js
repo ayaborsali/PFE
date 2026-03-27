@@ -167,7 +167,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// ⭐ ROUTE PUBLICATION CORRIGÉE - GÈRE LINKEDIN ⭐
+
 router.post('/:id/publish', auth, async (req, res) => {
   const client = await pool.connect();
   
@@ -202,6 +202,7 @@ router.post('/:id/publish', auth, async (req, res) => {
     
     // Résultats des publications
     const publicationResults = [];
+    let linkedinPublished = false;
     
     // 1. PUBLICATION SUR LINKEDIN
     if (platforms.includes('linkedin')) {
@@ -222,12 +223,22 @@ router.post('/:id/publish', auth, async (req, res) => {
           platform: 'linkedin',
           ...linkedinResult
         });
+        
+        // ⭐ Marquer si LinkedIn a réussi
+        if (linkedinResult.success) {
+          linkedinPublished = true;
+          console.log('✅ LinkedIn publication réussie');
+        } else {
+          console.log('❌ LinkedIn publication échouée:', linkedinResult.error);
+        }
       }
     }
     
     // 2. PUBLICATION SUR TANITJOBS (simulée)
+    let tanitjobsPublished = false;
     if (platforms.includes('tanitjobs')) {
       console.log('📤 Publication sur Tanitjobs...');
+      tanitjobsPublished = true;
       publicationResults.push({
         platform: 'tanitjobs',
         success: true,
@@ -236,8 +247,10 @@ router.post('/:id/publish', auth, async (req, res) => {
     }
     
     // 3. PUBLICATION INTERNE
+    let internalPublished = false;
     if (platforms.includes('internal')) {
       console.log('📤 Publication sur l\'intranet...');
+      internalPublished = true;
       publicationResults.push({
         platform: 'internal',
         success: true,
@@ -245,26 +258,40 @@ router.post('/:id/publish', auth, async (req, res) => {
       });
     }
     
-    // Mettre à jour le statut de l'offre
-    await client.query(
-      `UPDATE job_offers 
-       SET 
-         status = 'published',
-         publication_date = NOW(),
-         published_by = $1,
-         published_at = NOW(),
-         updated_at = NOW()
-       WHERE id = $2`,
-      [userName, id]
-    );
+    // ⭐ Vérifier si au moins une publication a réussi
+    const hasSuccess = linkedinPublished || tanitjobsPublished || internalPublished;
+    
+    console.log('📊 Résumé des publications:');
+    console.log('  - LinkedIn:', linkedinPublished ? '✅' : '❌');
+    console.log('  - Tanitjobs:', tanitjobsPublished ? '✅' : '❌');
+    console.log('  - Interne:', internalPublished ? '✅' : '❌');
+    console.log('  - Au moins une réussie:', hasSuccess ? '✅ OUI' : '❌ NON');
+    
+    // ⭐ Mettre à jour le statut de l'offre si au moins une publication a réussi
+    if (hasSuccess) {
+      await client.query(
+        `UPDATE job_offers 
+         SET 
+           status = 'published',
+           publication_date = NOW(),
+           published_by = $1,
+           published_at = NOW(),
+           updated_at = NOW()
+         WHERE id = $2`,
+        [userName, id]
+      );
+      console.log('✅ Statut de l\'offre mis à jour: draft → published');
+    } else {
+      console.log('⚠️ Aucune publication réussie, statut non modifié');
+    }
     
     await client.query('COMMIT');
     
     res.json({
-      success: true,
-      message: 'Offre publiée avec succès',
+      success: hasSuccess,
+      message: hasSuccess ? 'Offre publiée avec succès' : 'Publication échouée',
       publications: publicationResults,
-      jobOffer: { ...offer, status: 'published' }
+      jobOffer: hasSuccess ? { ...offer, status: 'published' } : offer
     });
     
   } catch (error) {
