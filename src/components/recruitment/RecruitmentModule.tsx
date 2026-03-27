@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Plus, Search, Filter, Zap, Users, Briefcase, Target, 
-  TrendingUp, CheckCircle,Calendar 
+  TrendingUp, CheckCircle, Calendar, Linkedin 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import RecruitmentRequestList from './RecruitmentRequestList';
@@ -29,9 +29,40 @@ export default function RecruitmentModule() {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 👈 État pour LinkedIn
+  const [isLinkedInConnected, setIsLinkedInConnected] = useState(false);
+
+  // 👈 Vérifier la connexion LinkedIn
+  const checkLinkedInConnection = () => {
+    const token = localStorage.getItem('linkedin_token');
+    setIsLinkedInConnected(!!token);
+  };
+
+  // 👈 Connecter LinkedIn
+  const connectLinkedIn = () => {
+    window.location.href = 'http://localhost:5000/auth/linkedin';
+  };
+
+  // 👈 Capturer le token depuis l'URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const connected = urlParams.get('linkedin_connected');
+    
+    if (token) {
+      localStorage.setItem('linkedin_token', token);
+      setIsLinkedInConnected(true);
+      toast.success('Compte LinkedIn connecté avec succès !');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (connected === 'true') {
+      setIsLinkedInConnected(true);
+    }
+  }, []);
 
   useEffect(() => {
     fetchStats();
+    checkLinkedInConnection(); // 👈 Vérifier LinkedIn au chargement
   }, []);
 
   const fetchStats = async () => {
@@ -139,16 +170,14 @@ export default function RecruitmentModule() {
 
   // 🔥 FILTRER LES VUES SELON LES PERMISSIONS
   const visibleViews = views.filter(view => {
-    // Cacher l'onglet validation si non autorisé
     if (view.id === 'validate') {
       return canValidateRequests;
     }
 
-   if (view.id === 'requests' && user?.role?.toLowerCase() === 'directeur') {
-    return false;
-   }
+    if (view.id === 'requests' && user?.role?.toLowerCase() === 'directeur') {
+      return false;
+    }
     
-    // Tous les autres onglets restent visibles
     return true;
   });
 
@@ -279,6 +308,22 @@ export default function RecruitmentModule() {
                   </p>
                 </div>
               </div>
+
+              {/* 👈 BOUTON CONNEXION LINKEDIN */}
+              <div className="flex items-center px-4 py-3 space-x-3 bg-white border shadow-sm border-slate-200/70 rounded-xl">
+                <div className={`p-2 rounded-lg ${isLinkedInConnected ? 'bg-green-100' : 'bg-blue-100'}`}>
+                  <Linkedin className={`w-5 h-5 ${isLinkedInConnected ? 'text-green-600' : 'text-blue-600'}`} />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">LinkedIn</p>
+                  <button
+                    onClick={connectLinkedIn}
+                    className={`text-sm font-medium ${isLinkedInConnected ? 'text-green-600' : 'text-blue-600'} hover:underline`}
+                  >
+                    {isLinkedInConnected ? '✅ Connecté' : '🔗 Connecter'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -398,13 +443,16 @@ export default function RecruitmentModule() {
             />
           )}
           
-          {/* 🔥 Plus besoin de vérifier canValidateRequests ici car l'onglet n'existe pas pour les non autorisés */}
           {activeView === 'validate' && (
             <ValidationRequestList onUpdate={fetchStats} searchTerm={searchTerm} />
           )}
           
           {activeView === 'offers' && (
-            <JobOffersList onUpdate={fetchStats} searchTerm={searchTerm} />
+            <JobOffersList 
+              onUpdate={fetchStats} 
+              searchTerm={searchTerm}
+              // 👈 Passer le statut de connexion LinkedIn si nécessaire
+            />
           )}
           
           {activeView === 'candidates' && (
