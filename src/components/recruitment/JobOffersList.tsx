@@ -198,14 +198,40 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
       </div>
 
       {/* Modals */}
-      <PublishModal
-        isOpen={showPublishModal}
-        onClose={() => setShowPublishModal(false)}
-        offer={selectedOfferForPublish}
-        onPublishSuccess={handlePublishSuccess}
-      />
+<PublishModal
+  isOpen={showPublishModal}
+  onClose={() => setShowPublishModal(false)}
+  offer={selectedOfferForPublish}
+  onPublishSuccess={handlePublishSuccess}
+/>
+
+<JobOfferDetailsModal
+  isOpen={showDetails}
+  onClose={() => setShowDetails(false)}
+  offer={selectedOffer}
+  onEdit={(offer) => {
+    setShowDetails(false);
+    setSelectedOffer(offer);
+    setShowEditModal(true);
+  }}
+  onPublish={(offer) => {
+    setShowDetails(false);
+    setSelectedOfferForPublish(offer);
+    setShowPublishModal(true);
+  }}
+  onCloseOffer={handleCloseOffer}
+/>
+
+<JobOfferEditModal
+  isOpen={showEditModal}
+  onClose={() => setShowEditModal(false)}
+  offer={selectedOffer}
+  onSave={() => {
+    fetchOffers();
+    onUpdate();
+  }}
+/>
       
-      {/* Tu peux ajouter les autres modals ici : JobOfferDetailsModal, JobOfferEditModal */}
     </div>
   );
 }
