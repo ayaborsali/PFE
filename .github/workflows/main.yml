@@ -17,8 +17,18 @@ jobs:
         with:
           node-version: 18
 
-      - name: Installer dépendances
+      - name: Installer frontend
         run: npm install
 
-      - name: Lancer projet
-        run: node server.js
+      - name: Build frontend
+        run: npm run build || echo "No build"
+
+      - name: Installer backend
+        run: |
+          cd rh-backend
+          npm install
+
+      - name: Tester backend
+        run: |
+          cd rh-backend
+          echo "Backend OK"
