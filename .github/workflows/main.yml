@@ -1,0 +1,24 @@
+name: Test Projet
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Télécharger code
+        uses: actions/checkout@v3
+
+      - name: Installer Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Installer dépendances
+        run: npm install
+
+      - name: Lancer projet
+        run: node server.js
