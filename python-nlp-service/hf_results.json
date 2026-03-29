@@ -1,0 +1,152 @@
+[
+  {
+    "model": "carsenk/llama3.2_3b_122824_uncensored",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "carsenk/llama3.2_1b_2025_uncensored",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "zse-zllm/Qwen2.5-7B-Instruct-zse-int4",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "zse-zllm/Mistral-7B-Instruct-v0.3-zse-int4",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "zse-zllm/Qwen2.5-32B-Instruct-zse-int4",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "zse-zllm/Qwen2.5-14B-Instruct-zse-int4",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "zse-zllm/Qwen2.5-72B-Instruct-zse-int4",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "zse-zllm/Mixtral-8x7B-Instruct-v0.1-zse-int4",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "mradermacher/llama3.2_3b_122824_uncensored-GGUF",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "mradermacher/llama3.2_3b_122824_uncensored-i1-GGUF",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "mradermacher/llama3.2_1b_2025_uncensored_v2-GGUF",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "Novaciano/Uncensored-1b-Creative_Writing_RP-GGUF",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "Novaciano/L3.2-1b_SuperUncensored_V2-Q4_K_M-GGUF",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "qoranet/QORA-LLM-2B",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "kaipybara/hackping-2025",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "Wade5/MyModel2",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "FilledVaccum/Llama-3.1-Sherkala-8B-Chat-Quantized-8-Bits",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "Crometheus00/henry-llama3-8b-instruct",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "syafiqzufayri/my-resume-parser-lite",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "syafiqzufayri/resume-parser-v2",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "srswti/bodega-raptor-1b-reasoning-opus4.5-distill",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "srswti/axe-turbo-1b",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "srswti/bodega-raptor-0.9b",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "srswti/bodega-raptor-90m",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "XythicK/Plano-Orchestrator-30B-A3B-GGUF",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "XythicK/qwen-coder-14b-vulrepair-GGUF",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "XythicK/Mag-Mell-R1-Uncensored-21B-GGUF",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "Geodd/GLM-4.7-Flash-FP8",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "Geodd/GLM-4.7-Flash-W8A16",
+    "success": false,
+    "error": "HTTP 410"
+  },
+  {
+    "model": "Fu01978/Llama-3.2-1B-4B-Quad-MoE-Q4_K_M",
+    "success": false,
+    "error": "HTTP 410"
+  }
+]

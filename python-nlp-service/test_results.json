@@ -1,0 +1,18 @@
+[
+  {
+    "model": "llama-3.3-70b-versatile",
+    "success": true,
+    "time": 3.3660621643066406,
+    "length": 1751,
+    "score": 16,
+    "has_emojis": 6
+  },
+  {
+    "model": "llama-3.1-70b-versatile",
+    "success": true,
+    "time": 2.1348962783813477,
+    "length": 1473,
+    "score": 15,
+    "has_emojis": 5
+  }
+]
