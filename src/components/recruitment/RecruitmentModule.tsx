@@ -42,7 +42,7 @@ export default function RecruitmentModule() {
 
   // 👈 Connecter LinkedIn
   const connectLinkedIn = () => {
-    window.location.href = '${API}/auth/linkedin';
+    window.location.href = `${API}/auth/linkedin`;
   };
 
   // 👈 Capturer le token depuis l'URL

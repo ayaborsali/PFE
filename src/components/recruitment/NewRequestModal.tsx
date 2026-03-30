@@ -727,7 +727,6 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
   const [salaryError, setSalaryError] = useState<string>('');
  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
- let url = `${API}/api/job-offers`;
   const [searchJob, setSearchJob] = useState('');
   const [searchDept, setSearchDept] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
@@ -925,7 +924,7 @@ export default function NewRequestModal({ onClose, onSuccess }: Props) {
 
      console.log('📤 Envoi des données:', requestData); // Debug
 
-      const res = await fetch('${API}/api/recruitment/new-request', {
+      const res = await fetch(`${API}/api/recruitment/new-request`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

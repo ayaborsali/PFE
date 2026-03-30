@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
 
   const signIn = async (email: string, password: string, rememberMe: boolean) => {
-    const res = await axios.post('${API}/api/auth/login', { email, password });
+    const res = await axios.post(`${API}/api/auth/login`, { email, password });
     setUser(res.data.user);
     setToken(res.data.token);
 
@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
   try {
-    const res = await axios.post('${API}/api/auth/forgot-password', { email });
+    const res = await axios.post(`${API}/api/auth/forgot-password`, { email });
     return { success: true, data: res.data };
   } catch (err: any) {
     return { success: false, message: err.response?.data?.message || 'Erreur serveur' };

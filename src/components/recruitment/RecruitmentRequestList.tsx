@@ -137,8 +137,8 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
       });
 
       const endpoint = showArchived 
-        ? '${API}/api/recruitmentRequests/archived'
-        : '${API}/api/recruitmentRequests';
+        ? `${API}/api/recruitmentRequests/archived`
+        : `${API}/api/recruitmentRequests`;
 
       const res = await fetch(`${endpoint}?${params}`, {
         headers: {
