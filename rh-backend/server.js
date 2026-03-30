@@ -99,7 +99,13 @@ app.get('/auth/linkedin/callback', async (req, res) => {
   }
 });
 
+
 const PORT = process.env.PORT || 5000;
+app.get('/', (req, res) => {
+  res.send('🚀 API RH Backend fonctionne avec Docker');
+});
+
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔗 LinkedIn Auth: http://localhost:${PORT}/auth/linkedin`);
