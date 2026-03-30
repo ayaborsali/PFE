@@ -11,7 +11,12 @@ app = FastAPI(title="NLP Service for Job Offers", version="1.0.0")
 # Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5000", "http://127.0.0.1:5000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "https://pfe-zeta-six.vercel.app"  # 👈 AJOUT IMPORTANT
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

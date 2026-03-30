@@ -116,7 +116,7 @@ export const JobOfferEditModal = ({ isOpen, onClose, offer, onSave }: JobOfferEd
   const [loading, setLoading] = useState(false);
   const [titleSearch, setTitleSearch] = useState('');
   const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
-
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
   // Filtrer les titres selon la recherche
   const filteredTitles = useMemo(() => {
     if (!titleSearch) return jobTitlesList;
@@ -170,7 +170,7 @@ export const JobOfferEditModal = ({ isOpen, onClose, offer, onSave }: JobOfferEd
     try {
       const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:5000/api/job-offers/${offer.id}`, {
+      const response = await fetch(`${API}/api/job-offers/${offer.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${authToken}`,

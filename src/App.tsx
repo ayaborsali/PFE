@@ -1,7 +1,6 @@
 import { useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import ApplyForm from './components/recruitment/ApplyForm';
 
 function App() {
   const { user, loading } = useAuth();

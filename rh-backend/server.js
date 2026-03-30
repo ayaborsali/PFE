@@ -15,7 +15,10 @@ const app = express();
 
 // Configuration CORS explicite
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: [
+    'http://localhost:5173',
+    'https://pfe-zeta-six.vercel.app' // 👈 IMPORTANT
+  ],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization','x-linkedin-token']
 }));

@@ -122,7 +122,7 @@ export default function CandidatesList() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
   // État pour le formulaire d'entretien
   const [showInterviewForm, setShowInterviewForm] = useState(false);
   const [interviewFormData, setInterviewFormData] = useState<InterviewFormData>({

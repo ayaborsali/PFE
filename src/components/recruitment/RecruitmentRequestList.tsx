@@ -84,7 +84,8 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState<Request | null>(null);
   const [deletionReason, setDeletionReason] = useState<string>('');
-  
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
   // États pour les filtres avancés
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
@@ -136,8 +137,8 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
       });
 
       const endpoint = showArchived 
-        ? 'http://localhost:5000/api/recruitmentRequests/archived'
-        : 'http://localhost:5000/api/recruitmentRequests';
+        ? '${API}/api/recruitmentRequests/archived'
+        : '${API}/api/recruitmentRequests';
 
       const res = await fetch(`${endpoint}?${params}`, {
         headers: {
@@ -309,7 +310,7 @@ export default function RecruitmentRequestList({ onUpdate, searchTerm, onNewRequ
     try {
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       
-      const res = await fetch(`http://localhost:5000/api/recruitmentRequests/${id}/archive`, {
+      const res = await fetch(`${API}/api/recruitmentRequests/${id}/archive`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

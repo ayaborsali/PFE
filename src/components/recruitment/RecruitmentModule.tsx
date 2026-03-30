@@ -29,7 +29,8 @@ export default function RecruitmentModule() {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
   // 👈 État pour LinkedIn
   const [isLinkedInConnected, setIsLinkedInConnected] = useState(false);
 
@@ -41,7 +42,7 @@ export default function RecruitmentModule() {
 
   // 👈 Connecter LinkedIn
   const connectLinkedIn = () => {
-    window.location.href = 'http://localhost:5000/auth/linkedin';
+    window.location.href = '${API}/auth/linkedin';
   };
 
   // 👈 Capturer le token depuis l'URL
@@ -78,7 +79,7 @@ export default function RecruitmentModule() {
 
       console.log('🔍 Récupération des stats...');
 
-      const BASE_URL = 'http://localhost:5000/api/recruitmentRequests';
+      const BASE_URL = `${API}/api/recruitmentRequests`;
       
       const pendingRes = await fetch(`${BASE_URL}/requests/by-status/pending`, { headers });
       const pendingData = await pendingRes.json();

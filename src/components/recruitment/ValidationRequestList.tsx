@@ -68,7 +68,7 @@ export default function ValidationRequestList({ onUpdate, searchTerm }: Props) {
   const [commentText, setCommentText] = useState('');
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
-
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
   // États pour le mode validation/refus
   const [validationAction, setValidationAction] = useState<'validate' | 'reject' | null>(null);
   const [validationRequest, setValidationRequest] = useState<Request | null>(null);
@@ -106,7 +106,7 @@ export default function ValidationRequestList({ onUpdate, searchTerm }: Props) {
       
       // Appel à l'API avec le rôle
       const response = await fetch(
-  `http://localhost:5000/api/validationRequests/validation-requests?role=${roleParam}`, 
+  `${API}/api/validationRequests/validation-requests?role=${roleParam}`, 
   { headers }
 );
       
@@ -272,8 +272,8 @@ export default function ValidationRequestList({ onUpdate, searchTerm }: Props) {
       
       const nextLevel = getNextValidationLevel();
       const endpoint = validationAction === 'validate' 
-  ? `http://localhost:5000/api/validationRequests/validation-requests/${validationRequest.id}/validate`
-  : `http://localhost:5000/api/validationRequests/validation-requests/${validationRequest.id}/reject`;
+  ? `${API}/api/validationRequests/validation-requests/${validationRequest.id}/validate`
+  : `${API}/api/validationRequests/validation-requests/${validationRequest.id}/reject`;
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -355,7 +355,7 @@ export default function ValidationRequestList({ onUpdate, searchTerm }: Props) {
         'Content-Type': 'application/json'
       };
       
-      const response = await fetch(`http://localhost:5000/api/recruitment-requests/${editingRequest.id}`, {
+      const response = await fetch(`${API}/api/recruitment-requests/${editingRequest.id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(editFormData)

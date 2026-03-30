@@ -26,7 +26,8 @@ export const PublishModal = ({ isOpen, onClose, offer, onPublishSuccess, isReope
   const [isPublishingLocal, setIsPublishingLocal] = useState(false);
   const [generatedText, setGeneratedText] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
   const { isConnected: isLinkedInConnected, connect: connectLinkedIn, publishOffer: publishToLinkedIn } = useLinkedIn();
 
   const togglePlatform = (platformId: string) => {
@@ -50,7 +51,7 @@ export const PublishModal = ({ isOpen, onClose, offer, onPublishSuccess, isReope
     try {
       console.log('📤 Génération du texte via NLP...');
       
-      const response = await fetch(`http://localhost:5000/api/job-offers/${offer.id}/generate-text`, {
+      const response = await fetch(`${API}/api/job-offers/${offer.id}/generate-text`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -108,7 +109,7 @@ export const PublishModal = ({ isOpen, onClose, offer, onPublishSuccess, isReope
     try {
       console.log('📧 Envoi de l\'offre par email...');
       
-      const response = await fetch(`http://localhost:5000/api/job-offers/${offer.id}/send-email`, {
+      const response = await fetch(`${API}/api/job-offers/${offer.id}/send-email`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -152,7 +153,7 @@ export const PublishModal = ({ isOpen, onClose, offer, onPublishSuccess, isReope
     const endpoint = isReopen ? 'reopen' : 'publish';
     
     try {
-      const response = await fetch(`http://localhost:5000/api/job-offers/${offer.id}/${endpoint}`, {
+      const response = await fetch(`${API}/api/job-offers/${offer.id}/${endpoint}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -225,7 +226,7 @@ export const PublishModal = ({ isOpen, onClose, offer, onPublishSuccess, isReope
         const linkedinToken = localStorage.getItem('linkedin_token');
         const endpoint = isReopen ? 'reopen' : 'publish';
         
-        const response = await fetch(`http://localhost:5000/api/job-offers/${offer.id}/${endpoint}`, {
+        const response = await fetch(`${API}/api/job-offers/${offer.id}/${endpoint}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${authToken}`,

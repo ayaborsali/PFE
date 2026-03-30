@@ -34,7 +34,7 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
   const [selectedOfferForPublish, setSelectedOfferForPublish] = useState<JobOffer | null>(null);
   const [isReopenMode, setIsReopenMode] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<JobOffer>>({});
-
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
   // Charger les offres
   useEffect(() => {
     fetchOffers();
@@ -51,8 +51,7 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
       }
 
       const headers = { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' };
-      let url = 'http://localhost:5000/api/job-offers';
-      const params = new URLSearchParams();
+      let url = `${API}/api/job-offers`;      const params = new URLSearchParams();
       if (filter !== 'all') params.append('status', filter);
       if (searchInput) params.append('search', searchInput);
       if (params.toString()) url += `?${params.toString()}`;
@@ -90,7 +89,7 @@ export default function JobOffersList({ onUpdate, searchTerm = '' }: Props) {
   const handleCloseOffer = async (offerId: string) => {
     try {
       const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/job-offers/${offerId}/close`, {
+      const response = await fetch(`${API}/api/job-offers/${offerId}/close`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }
       });

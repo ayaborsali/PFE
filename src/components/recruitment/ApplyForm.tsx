@@ -28,7 +28,7 @@ export default function ApplyForm() {
   const [error, setError] = useState<ErrorState | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cvFile, setCvFile] = useState<File | null>(null);
-  
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -41,58 +41,58 @@ export default function ApplyForm() {
   });
 
   // Récupérer les détails de l'offre - SANS AUTHENTIFICATION
-  useEffect(() => {
-    const fetchOffer = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        console.log('📡 Récupération de l\'offre ID:', id);
-        
-        const response = await fetch(`http://localhost:5000/api/job-offers/public/${id}`);
-        const data = await response.json();
-        
-        if (response.status === 404) {
-          setError({
-            type: 'NOT_FOUND',
-            message: 'Offre non trouvée'
-          });
-        } else if (response.status === 410) {
-          setError({
-            type: 'OFFER_CLOSED',
-            message: data.message || 'Cette offre n\'est plus disponible',
-            status: data.status
-          });
-        } else if (response.ok) {
-          console.log('✅ Offre récupérée:', data);
-          setOffer(data);
-        } else {
-          setError({
-            type: 'ERROR',
-            message: 'Erreur lors du chargement de l\'offre'
-          });
-        }
-      } catch (error) {
-        console.error('Erreur:', error);
+ useEffect(() => {
+  const fetchOffer = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('📡 Récupération de l\'offre ID:', id);
+
+      const response = await fetch(`${API}/api/job-offers/public/${id}`);
+      const data = await response.json();
+
+      if (response.status === 404) {
+        setError({
+          type: 'NOT_FOUND',
+          message: 'Offre non trouvée'
+        });
+      } else if (response.status === 410) {
+        setError({
+          type: 'OFFER_CLOSED',
+          message: data.message || 'Cette offre n\'est plus disponible',
+          status: data.status
+        });
+      } else if (response.ok) {
+        console.log('✅ Offre récupérée:', data);
+        setOffer(data);
+      } else {
         setError({
           type: 'ERROR',
-          message: 'Erreur de connexion au serveur'
+          message: 'Erreur lors du chargement de l\'offre'
         });
-      } finally {
-        setLoading(false);
       }
-    };
-    
-    if (id) {
-      fetchOffer();
-    } else {
-      setLoading(false);
+    } catch (error) {
+      console.error('Erreur:', error);
       setError({
-        type: 'NOT_FOUND',
-        message: 'ID d\'offre manquant'
+        type: 'ERROR',
+        message: 'Erreur de connexion au serveur'
       });
+    } finally {
+      setLoading(false);
     }
-  }, [id]);
+  };
+
+  if (id) {
+    fetchOffer();
+  } else {
+    setLoading(false);
+    setError({
+      type: 'NOT_FOUND',
+      message: 'ID d\'offre manquant'
+    });
+  }
+ }, [id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -105,47 +105,48 @@ export default function ApplyForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!cvFile) {
-      toast.error('Veuillez joindre votre CV');
-      return;
+  e.preventDefault();
+
+  if (!cvFile) {
+    toast.error('Veuillez joindre votre CV');
+    return;
+  }
+
+  setSubmitting(true);
+
+  try {
+    const formDataToSend = new FormData();
+    formDataToSend.append('offerId', id || '');
+    formDataToSend.append('firstName', formData.firstName);
+    formDataToSend.append('lastName', formData.lastName);
+    formDataToSend.append('email', formData.email);
+    formDataToSend.append('phone', formData.phone);
+    formDataToSend.append('message', formData.message);
+    formDataToSend.append('experience', formData.experience);
+    formDataToSend.append('currentPosition', formData.currentPosition);
+    formDataToSend.append('availability', formData.availability);
+    formDataToSend.append('cv', cvFile);
+
+    const response = await fetch(`${API}/api/candidates/apply`, {
+      method: 'POST',
+      body: formDataToSend
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      toast.success('✅ Candidature envoyée avec succès !');
+      navigate('/confirmation');
+    } else {
+      toast.error(result.error || 'Erreur lors de l\'envoi');
     }
-    
-    setSubmitting(true);
-    
-    try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('offerId', id || '');
-      formDataToSend.append('firstName', formData.firstName);
-      formDataToSend.append('lastName', formData.lastName);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('message', formData.message);
-      formDataToSend.append('experience', formData.experience);
-      formDataToSend.append('currentPosition', formData.currentPosition);
-      formDataToSend.append('availability', formData.availability);
-      formDataToSend.append('cv', cvFile);
-      
-      const response = await fetch('http://localhost:5000/api/candidates/apply', {
-        method: 'POST',
-        body: formDataToSend
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok) {
-        toast.success('✅ Candidature envoyée avec succès !');
-        navigate('/confirmation');
-      } else {
-        toast.error(result.error || 'Erreur lors de l\'envoi');
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur de connexion au serveur');
-    } finally {
-      setSubmitting(false);
-    }
+
+  } catch (error) {
+    console.error('Erreur:', error);
+    toast.error('Erreur de connexion au serveur');
+  } finally {
+    setSubmitting(false);
+  }
   };
 
   if (error) {
