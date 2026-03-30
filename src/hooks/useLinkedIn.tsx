@@ -15,7 +15,7 @@ export const useLinkedIn = () => {
 
   // Connecter LinkedIn
   const connect = () => {
-    window.location.href = '${API}/auth/linkedin';
+    window.location.href = `${API}/auth/linkedin`;
   };
 
   // Déconnecter LinkedIn
@@ -46,7 +46,7 @@ export const useLinkedIn = () => {
       console.log('📤 Publication sur LinkedIn via API...');
       console.log('🔑 Token LinkedIn présent:', !!token);
       
-      const response = await fetch('${API}/api/publish-linkedin', {
+      const response = await fetch(`${API}/api/publish-linkedin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
