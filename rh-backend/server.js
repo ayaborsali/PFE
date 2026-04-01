@@ -8,7 +8,7 @@ import validationRequestsRouter from './routes/validationRequests.js';
 import jobOffersRouter from './routes/jobOffers.js';
 import linkedinRoutes from './routes/linkedin.js';
 import candidatesRoutes from './routes/candidates.js'; // 👈 AJOUT
-
+import chatRoutes from './routes/Chat.js';
 dotenv.config();
 
 const app = express();
@@ -27,6 +27,7 @@ app.use(express.json());
 
 // Routes existantes
 app.use('/api/auth', authRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/recruitmentRequests', recruitmentRequestsRouter);
 app.use('/api/recruitment', recruitmentRoutes);
 app.use('/api/validationRequests', validationRequestsRouter);
